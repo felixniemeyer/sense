@@ -1,5 +1,5 @@
 body {
-  background-color: #000
+	background-color: #080
 }
 
 h1 {
@@ -8,15 +8,13 @@ h1 {
 	color: #fff;
 	font-size: 0.47em; 
 	font-family: sans-serif;
-  background-color: rgba(255, 255, 255, 0) 
+	background-color: rgba(255, 255, 255, 0);
 }
 
 canvas {
-  position:fixed; 
-  top: 0;
-  left:0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  z-index: -1;
+	position:fixed; 
+	top: 0;
+	left:0;
+	display: block;
+	z-index: -1;
 }

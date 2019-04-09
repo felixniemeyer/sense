@@ -2,11 +2,14 @@
 
 precision highp int; 
 precision highp float; 
+precision highp sampler2D; 
 
-in vec4 color; 
+uniform sampler2D tex;
+
+in vec2 ts; 
 
 out vec4 fragColor; 
 
 void main() {
-	fragColor = vec4(0,1,1,1);
+	fragColor = texture(tex, ts);
 }

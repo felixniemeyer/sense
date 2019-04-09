@@ -1,5 +1,8 @@
-const POST_PROCESS_FRAGMENT_SHADER_SOURCE = `
 #version 300 es
+
+precision highp int; 
+precision highp float; 
+precision highp sampler2D;
 
 const float PI = 3.1415926535897932384626433832795;
 
@@ -9,27 +12,30 @@ uniform sampler2D particlePositions;
 uniform sampler2D particleColors;
 uniform sampler2D particleVelocities;
 uniform float deltaTime; 
-uniform bool preventRespawn = false;
-uniform vec2 playerPosition = vec2(0,0); //will be an uniform later on
-uniform float particleSpeedPerSecond = 0.5; //will be an uniform later on
+uniform bool preventRespawn;
+uniform vec2 playerPosition;
+uniform float particleSpeedPerSecond;
 
-out vec4 fragColor[4];
+layout(location = 0) out vec4 partPosOut;
+layout(location = 1) out vec4 partColOut; 
+layout(location = 2) out vec4 partVelOut; 
+layout(location = 3) out vec4 partCalOut; 
 
 struct Particle {
-	vec2 pA,
-	vec2 pB,
-	vec2 velocity, 
-	float rotation,
-	float rotationAdd,
-	vec4 color, 
-}
+	vec2 A;
+	vec2 B;
+	vec2 velocity;
+	float rotation;
+	float rotationAdd;
+	vec4 color;
+};
 
 Particle getParticle();
-bool particleOutOfView(Particle p); 
-bool particleTooDark(Particle p); 
-Particle disableParticle(inout Particle p); 
-Particle respawnParticle(inout Particle p); 
-void writeParticle(Particle p);
+bool particleOutOfView(in Particle p); 
+bool particleTooDark(in Particle p); 
+void disableParticle(inout Particle p); 
+void respawnParticle(inout Particle p); 
+void writeParticle(in Particle p);
 
 
 void main()
@@ -42,75 +48,78 @@ void main()
 			writeParticle(p);
 			return;
 		} else {
-			respawnParticle(newParticle();
+			respawnParticle(p);
 		}
 	} 
 	
-	// update velocity
-	vec2 newPos = p.position + p.velocity
-	// check collision, mirror velocity, set position, decrement rgba
+	//TODO: update velocity
+	vec2 newPos = p.B + p.velocity; // * deltaTime
+	//TODO: check collision, mirror velocity, set position, decrement rgba
 
-	p.pA = p.pB;
-	p.pB = newPos;
+	p.A = p.B;
+	p.B = newPos;
 	
-	writeParticle(p) 
+	writeParticle(p);
 }
-`
+
 Particle getParticle() {
 	Particle p;
 
-	vec4 particlePosition = texture(particlePositions, ts);
-	p.pA = particlePositions.xy;
-	p.pB = particlePositions.yw;
+	vec4 positions = texture(particlePositions, ts);
+	p.A = positions.xy;
+	p.B = positions.yw;
 
 	p.color = texture(particleColors, ts);
 
-	vec4 particleVelocity = texture(particleVelocities, ts);
-	p.velocity = particleVelocity.xy;
-	p.rotation = particleVelocity.z;
-	p.rotationAdd = particleVelocity.w;
+	vec4 velocity = texture(particleVelocities, ts);
+	p.velocity = velocity.xy;
+	p.rotation = velocity.z;
+	p.rotationAdd = velocity.w;
 	
 	return p;
 }
 
-bool particleOutOfView(Particle p) {
-	if(	p.position.x < playerPosition.x - 1 ||
-		p.position.x > playerPosition.x + 1 ||
-		p.position.y < playerPosition.y - 1 ||
-		p.position.y > playerPosition.y + 1 ) return true;
+bool particleOutOfView(in Particle p) {
+	if(	p.B.x < playerPosition.x - 1.0 ||
+		p.B.x > playerPosition.x + 1.0 ||
+		p.B.y < playerPosition.y - 1.0 ||
+		p.B.y > playerPosition.y + 1.0 ) return true;
 	return false;
 }
 
-bool particleTooDark(Particle p) {
+bool particleTooDark(in Particle p) {
 	return p.color.a < 0.1;
 }
 
 void disableParticle(inout Particle p) {
-	p.rgba = vec4(0,0,0,0);
+	p.color = vec4(0,0,0,0);
 	p.velocity = vec2(0,0);
 }
 
 void respawnParticle(inout Particle p) {
-	float direction = mod(97 * abs(p.pB.x) + 12.35 * ts.y + 79 * abs(p.pB.y) + 5.321 * ts.x, PI);
+	float direction = mod(9.7 * abs(p.B.x) + 12.35 * ts.y + 7.9 * abs(p.B.y) + 5.321 * ts.x, PI);
 	p.velocity = vec2(cos(direction), sin(direction)) * particleSpeedPerSecond; 
-	p.pA = vec2(0,0);
-	p.pB = p.pA;
-	p.rotation = 0;
-	p.rotationAdd = 0;
+	p.A = vec2(0.0,0.0);
+	p.B = p.A;
+	p.color = vec4(1,1,1,1);
+	p.rotation = 0.0;
+	p.rotationAdd = 0.0;
 }
 
-void writeParticle(Particle p) {
-	fragColor[0].xy = p.pA;
-	fragColor[0].zw = p.pB;
-	fragColor[1] = p.rgba;
-	fragColor[2] = vec4(p.velocity.x, p.velocity.y, p.rotation, p.rotation);
+void writeParticle(in Particle p) {
+	partPosOut.xy = p.A;
+	partPosOut.zw = p.B;
 
-	vec2 perpendicular = vec2(p.pB.y - p.pA.y, p.pA.x - p.pB.x)
-	float l = length(perpendicular)
-	if(l == 0) {
+	partColOut = p.color;
+
+	partVelOut = vec4(p.velocity.x, p.velocity.y, p.rotation, p.rotation);
+
+	vec2 perpendicular = vec2(p.B.y - p.A.y, p.A.x - p.B.x);
+	float l = length(perpendicular);
+	if(l == 0.0) {
 		perpendicular = vec2(0,0);
 	} else {
-		perpendicular = perpendicular / length; 
+		perpendicular = perpendicular / l; 
 	}
-	fragColor[3].xy = perpendicular;
+	partCalOut.xy = perpendicular;
 }
