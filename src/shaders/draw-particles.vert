@@ -29,8 +29,8 @@ void main() {
 	uint edge = vert.y;
 
 	uint y = particleId / particleCountSqrt;
-	ts.x = float(particleId - particleCountSqrt * y);
-	ts.y = float(y);
+	ts.x = float(particleId - particleCountSqrt * y) / float(particleCountSqrt);
+	ts.y = float(y) / float(particleCountSqrt);
 	Particle p = getParticle(ts);
 
 	vec2 position; 
@@ -45,18 +45,6 @@ void main() {
 		position = p.A + p.perpendicular * width; 
 	}
 
-	//debug
-	if(edge == 0u) {
-		position = vec2(0.5,0.5);
-	} else if(edge == 1u) {
-		position = vec2(0.5,-0.5);
-	} else if(edge == 2u) {
-		position = vec2(-0.5,-0.5);
-	} else if(edge == 3u) {
-		position = vec2(-0.5,0.5);
-	}
-	
-	
 	color = p.color; 
 	gl_Position = vec4(position.x, position.y, 0, 1);
 }

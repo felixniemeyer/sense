@@ -7,8 +7,8 @@ import vsTexDebugQuad from './shaders/tex-debug-quad.vert'
 import fsTexDebugQuad from './shaders/tex-debug-quad.frag'
 
 function main() {
-  var frameSize = 512
-  var particleCountSqrt = 32
+  var frameSize = 768
+  var particleCountSqrt = 16
   var particleCount = particleCountSqrt * particleCountSqrt
   var particleDataTextureCount = 4
 
@@ -16,7 +16,10 @@ function main() {
   canvas.setAttribute('height', frameSize) 
   canvas.setAttribute('width', frameSize) 
 
-	var gl = canvas.getContext("webgl2");
+	var gl = canvas.getContext("webgl2", {
+    preserveDrawingBuffer: true,
+//    premultipliedAlpha: false
+  });
 	if (!gl) {
 		console.error("could not get webgl2 content")
 		return
@@ -57,7 +60,7 @@ function main() {
   gl.uniform1i(particleDataUniformLocations.particleVelocities, 2)
   gl.uniform1i(particleDataUniformLocations.preventRespawn, 0)
   gl.uniform2fv(particleDataUniformLocations.playerPosition, [0, 0]) 
-  gl.uniform1f(particleDataUniformLocations.particleSpeedPerSecond, 0.5)
+  gl.uniform1f(particleDataUniformLocations.particleSpeedPerSecond, 0.3)
 
   var dataBuffer
   var particleDataTextures = []
@@ -146,7 +149,7 @@ function main() {
   gl.uniform1i(drawParticlesUniformLocations.particleColors, 1)
   gl.uniform1i(drawParticlesUniformLocations.particlePrecalcs, 2)
   gl.uniform1ui(drawParticlesUniformLocations.particleCountSqrt, particleCountSqrt) 
-  gl.uniform1f(drawParticlesUniformLocations.width, 2.5 / frameSize) 
+  gl.uniform1f(drawParticlesUniformLocations.width, 1.1 / frameSize) 
 
   var particleSegmentsVao = gl.createVertexArray()
   gl.bindVertexArray(particleSegmentsVao)
@@ -161,15 +164,15 @@ function main() {
       vertexData[index+1] = v
     }
     indexData[i*6+0] = i * 4 + 0
-    indexData[i*6+0] = i * 4 + 1
-    indexData[i*6+0] = i * 4 + 2
-    indexData[i*6+0] = i * 4 + 1
-    indexData[i*6+0] = i * 4 + 2
-    indexData[i*6+0] = i * 4 + 3
+    indexData[i*6+1] = i * 4 + 1
+    indexData[i*6+2] = i * 4 + 2
+    indexData[i*6+3] = i * 4 + 2
+    indexData[i*6+4] = i * 4 + 3
+    indexData[i*6+5] = i * 4 + 0
   }
   gl.bindBuffer(gl.ARRAY_BUFFER, particleVerticesBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.STATIC_DRAW)
-  gl.vertexAttribIPointer(0, 2, gl.UNSIGNED_SHORT, false, 0, 0)
+  gl.vertexAttribIPointer(0, 2, gl.UNSIGNED_SHORT, 0, 0)
   gl.enableVertexAttribArray(0)
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, particleVerticesIndexBuffer) 
@@ -189,7 +192,7 @@ function main() {
     gl.useProgram(drawParticlesProgram) 
     gl.bindVertexArray(particleSegmentsVao) 
     
-    gl.drawElements(gl.TRIANGLES, particleCount, gl.UNSIGNED_INT, 0)
+    gl.drawElements(gl.TRIANGLES, 6 * particleCount, gl.UNSIGNED_SHORT, 0)
   }
 
   var texDebugQuadProgram = shaderTools.createProgramFromSources(
@@ -204,6 +207,7 @@ function main() {
     
   gl.uniform1i(texDebugQuadUniformLocations.tex, 0)
   var drawDebugQuad = (glTexture, x, y, size) => {
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
     gl.viewport(0,0,frameSize, frameSize)
 
@@ -223,11 +227,9 @@ function main() {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
   gl.cullFace(gl.FRONT_AND_BACK)
 
-  // gl.enable(gl.BLEND) 
-  // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) 
+  //gl.enable(gl.BLEND) 
+  //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) 
 
-  gl.clearColor(0, 0, 1, 1)
-	gl.clear(gl.COLOR_BUFFER_BIT)
 
   var dTime, now, then = Date.now()
   var toBuf = 1
@@ -238,13 +240,10 @@ function main() {
     
     toBuf = 1 - toBuf
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null) //debug
-    gl.clear(gl.COLOR_BUFFER_BIT) //debug
-
     updateParticleData(dTime, toBuf) //debug: schreibt in den screen buffer
     drawParticles(toBuf)
     
-    var width = 2 * 32 / frameSize
+    var width = 2 * particleCountSqrt / frameSize
     for(var i = 0; i < particleDataTextureCount; i++) {
       drawDebugQuad(
         particleDataTextures[toBuf][i], 
@@ -253,56 +252,9 @@ function main() {
         width
       )
     }
-
-    requestAnimationFrame(loop)
+    setTimeout(() => { requestAnimationFrame(loop) })
   }
-
   requestAnimationFrame(loop) 
-    
-  /*
-	requestAnimationFrame(drawScene);
-
-	// Draw the scene.
-	function drawScene(time) {
-
-		{
-			//set render target
-			gl.bindFramebuffer(gl.FRAMEBUFFER, fb); // we need some kind of internal double buffering - because we read from the previous frame and write the next frame
-			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frame[currentFrameIndex], 0); //level = 0
-
-			//set texture to write to
-			gl.bindTexture(gl.TEXTURE_2D, frame[previousFrameIndex]);
-
-			gl.viewport(0, 0, texsize, texsize);
-
-			gl.useProgram(fancyProgram); 
-
-      // UNIFORMS...
-
-      gl.bindVertexArray(vao); 
-			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-		}
-		{
-			//set render target
-			gl.bindFramebuffer(gl.FRAMEBUFFER, null); //Screen
-			gl.viewport(0, 0, cansize, cansize);
-
-			//set texture to read from
-			gl.bindTexture(gl.TEXTURE_2D, frame[currentFrameIndex]);
-
-			gl.clearColor(0, 0, 1, 1);   // clear to blue
-			gl.clear(gl.COLOR_BUFFER_BIT);
-
-			//set program and uniforms
-			gl.useProgram(postProcessProgram);
-			gl.uniform1i(currentFrameTextureLocation, 0);
-
-			gl.bindVertexArray(vao); 
-			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-		}
-
-		requestAnimationFrame(drawScene);
-	} */
 }
 
 function createQuadVao(gl) {

@@ -53,7 +53,8 @@ void main()
 	} 
 	
 	//TODO: update velocity
-	vec2 newPos = p.B + p.velocity; // * deltaTime
+	vec2 newPos = p.B + p.velocity * deltaTime;
+
 	//TODO: check collision, mirror velocity, set position, decrement rgba
 
 	p.A = p.B;
@@ -67,7 +68,7 @@ Particle getParticle() {
 
 	vec4 positions = texture(particlePositions, ts);
 	p.A = positions.xy;
-	p.B = positions.yw;
+	p.B = positions.zw;
 
 	p.color = texture(particleColors, ts);
 
@@ -97,11 +98,11 @@ void disableParticle(inout Particle p) {
 }
 
 void respawnParticle(inout Particle p) {
-	float direction = mod(9.7 * abs(p.B.x) + 12.35 * ts.y + 7.9 * abs(p.B.y) + 5.321 * ts.x, PI);
+	float direction = mod(1.7 * abs(p.B.x) + 12.35 * ts.y + 7.9 * abs(p.B.y) + 5.321 * ts.x, 2.0*PI);
 	p.velocity = vec2(cos(direction), sin(direction)) * particleSpeedPerSecond; 
-	p.A = vec2(0.0,0.0);
+	p.A = vec2(0, 0);
 	p.B = p.A;
-	p.color = vec4(1,1,1,1);
+	p.color = vec4(1,0,1,1);
 	p.rotation = 0.0;
 	p.rotationAdd = 0.0;
 }
@@ -112,9 +113,9 @@ void writeParticle(in Particle p) {
 
 	partColOut = p.color;
 
-	partVelOut = vec4(p.velocity.x, p.velocity.y, p.rotation, p.rotation);
+	partVelOut = vec4(p.velocity.x, p.velocity.y, p.rotation, p.rotationAdd);
 
-	vec2 perpendicular = vec2(p.B.y - p.A.y, p.A.x - p.B.x);
+	vec2 perpendicular = vec2(p.velocity.y, - p.velocity.x);
 	float l = length(perpendicular);
 	if(l == 0.0) {
 		perpendicular = vec2(0,0);
