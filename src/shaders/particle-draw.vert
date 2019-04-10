@@ -10,9 +10,11 @@ uniform sampler2D particlePositions;
 uniform sampler2D particleColors;
 uniform sampler2D particlePrecalcs;
 uniform uint particleCountSqrt; 
-uniform float width;
+uniform float halfWidth;
+uniform float halfWidthPx;
 
 out vec4 color; 
+out float leftRight;
 
 struct Particle {
 	vec2 A;
@@ -36,13 +38,17 @@ void main() {
 	vec2 position; 
 	
 	if(edge == 0u) {
-		position = p.A - p.perpendicular * width;
+		position = p.A - p.perpendicular * halfWidth;
+		leftRight = -halfWidthPx;
 	} else if(edge == 1u) {
-		position = p.B - p.perpendicular * width; 
+		position = p.B - p.perpendicular * halfWidth; 
+		leftRight = -halfWidthPx;
 	} else if(edge == 2u) {
-		position = p.B + p.perpendicular * width; 
+		position = p.B + p.perpendicular * halfWidth; 
+		leftRight = halfWidthPx;
 	} else if(edge == 3u) {
-		position = p.A + p.perpendicular * width; 
+		position = p.A + p.perpendicular * halfWidth; 
+		leftRight = halfWidthPx;
 	}
 
 	color = p.color; 

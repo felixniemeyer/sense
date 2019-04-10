@@ -34,6 +34,7 @@ Particle getParticle();
 bool particleOutOfView(in Particle p); 
 bool particleTooDark(in Particle p); 
 bool particleTurnsTooFast(in Particle p); 
+float random(in Particle p, in float v1, in float v2, in float v3, in float from, in float to);
 void disableParticle(inout Particle p); 
 void respawnParticle(inout Particle p); 
 void writeParticle(in Particle p);
@@ -61,7 +62,6 @@ void main()
 		sin(r), cos(r)
 	);
 	p.velocity = Rotation * p.velocity;
-	p.velocity.y += 1.1; 
 
 	p.rotation += p.rotationAdd * deltaTime;
 
@@ -113,14 +113,27 @@ void disableParticle(inout Particle p) {
 }
 
 void respawnParticle(inout Particle p) {
-	float random = mod(13.2123 * ts.y + ts.x + 1.0 / 0.3 * p.A.y, 2.0) - 1.0;
-	float direction = mod(1.7 * abs(p.B.x) + 12.35 * ts.y + 7.9 * abs(p.B.y) + 5.321 * ts.x, 2.0*PI);
-	p.velocity = vec2(cos(direction), sin(direction)) * particleSpeedPerSecond; 
+	float rotationF = random(p, 1.23, 98.078, 29.102, -1.0, 1.0);
+	float speedF = random(p, 2.19, 0.313, 81.23, 0.1, 1.0);
+	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);
+	float red = random(p, 1.123, 2.89, 89.21, 0.4, 1.0); 
+
+	p.velocity = vec2(cos(direction), sin(direction)) * particleSpeedPerSecond * speedF;  
 	p.A = vec2(0, 0);
 	p.B = p.A;
-	p.color = vec4(1,0,1,1);
-	p.rotation = random * 2.0 * PI / 1.0; //1 rotation per 10 seconds
-	p.rotationAdd = -p.rotation * 0.1;
+	p.color = vec4(red,0.5,0.9,1);
+	p.rotation = rotationF * 2.0 * PI / 10.0; //1 rotation per 10 seconds
+	p.rotationAdd = -p.rotation;
+}
+
+float random(in Particle p, in float v1, in float v2, in float v3, in float from, in float to) {
+	float range = to - from; 
+	return mod(
+		v1 * ts.y + 
+		v1 * 72.3123 * ts.x +
+		v2 * abs(p.B.x) +
+		v3 * abs(p.B.y),
+		range) + from;
 }
 
 void writeParticle(in Particle p) {

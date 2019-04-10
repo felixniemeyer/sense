@@ -1,6 +1,10 @@
 ## Sense
 
-Artful Indie-Game created for Revision 2019
+Artful indie game created for Revision 2019
+
+### Requirements
+
+Browser with WebGL 2.0 
 
 ### Installation
 

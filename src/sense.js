@@ -1,16 +1,18 @@
 import shaderTools from './webgl2tools.js'
-import vsParticleData from './shaders/particle-data.vert'
-import fsParticleData from './shaders/particle-data.frag'
-import vsDrawParticles from './shaders/draw-particles.vert'
-import fsDrawParticles from './shaders/draw-particles.frag'
-import vsTexDebugQuad from './shaders/tex-debug-quad.vert'
-import fsTexDebugQuad from './shaders/tex-debug-quad.frag'
+import vsParticlePhysics from './shaders/particle-physics.vert'
+import fsParticlePhysics from './shaders/particle-physics.frag'
+import vsParticleDraw from './shaders/particle-draw.vert'
+import fsParticleDraw from './shaders/particle-draw.frag'
+import vsTextureDraw from './shaders/texture-draw.vert'
+import fsTextureDraw from './shaders/texture-draw.frag'
+import vsPostProcess from './shaders/post-process.vert'
+import fsPostProcess from './shaders/post-process.frag'
 
 function main() {
-  var frameSize = 768
+  var frameSize = 1024
   var particleCountSqrt = 16
   var particleCount = particleCountSqrt * particleCountSqrt
-  var particleDataTextureCount = 4
+  var particlePhysicsTextureCount = 4
 
 	var canvas = document.getElementById("canvas")
   canvas.setAttribute('height', frameSize) 
@@ -25,8 +27,8 @@ function main() {
 		return
 	}
 
-  if(gl.MAX_COLOR_ATTACHMENTS < particleDataTextureCount) {
-    console.error(`need at least ${particleDataTextureCount} color attachments`) 
+  if(gl.MAX_COLOR_ATTACHMENTS < particlePhysicsTextureCount) {
+    console.error(`need at least ${particlePhysicsTextureCount} color attachments`) 
     return 
   }
 
@@ -44,9 +46,9 @@ function main() {
 
   var quadVao = createQuadVao(gl) 
 
-	var particleDataProgram = shaderTools.createProgramFromSources(gl, [vsParticleData, fsParticleData])
-  gl.useProgram(particleDataProgram)
-  var particleDataUniformLocations = getUniformLocations(gl, particleDataProgram, [
+	var particlePhysicsProgram = shaderTools.createProgramFromSources(gl, [vsParticlePhysics, fsParticlePhysics])
+  gl.useProgram(particlePhysicsProgram)
+  var particlePhysicsUniformLocations = getUniformLocations(gl, particlePhysicsProgram, [
     'particlePositions', 
     'particleColors', 
     'particleVelocities',
@@ -55,16 +57,16 @@ function main() {
     'playerPosition', 
     'particleSpeedPerSecond'
   ])
-  gl.uniform1i(particleDataUniformLocations.particlePositions, 0)
-  gl.uniform1i(particleDataUniformLocations.particleColors, 1)
-  gl.uniform1i(particleDataUniformLocations.particleVelocities, 2)
-  gl.uniform1i(particleDataUniformLocations.preventRespawn, 0)
-  gl.uniform2fv(particleDataUniformLocations.playerPosition, [0, 0]) 
-  gl.uniform1f(particleDataUniformLocations.particleSpeedPerSecond, 0.3)
+  gl.uniform1i(particlePhysicsUniformLocations.particlePositions, 0)
+  gl.uniform1i(particlePhysicsUniformLocations.particleColors, 1)
+  gl.uniform1i(particlePhysicsUniformLocations.particleVelocities, 2)
+  gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, 0)
+  gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
+  gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, 0.3)
 
   var dataBuffer
-  var particleDataTextures = []
-  var particleDataFrameBuffer = []
+  var particlePhysicsTextures = []
+  var particlePhysicsFrameBuffer = []
   { 
     var createTexture = () => {
       var tex = gl.createTexture()
@@ -89,7 +91,7 @@ function main() {
     var createFramebuffer = (dataTextures) => {
       var fb = gl.createFramebuffer()
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb) 
-      for(var ti = 0; ti < particleDataTextureCount; ti++) {
+      for(var ti = 0; ti < particlePhysicsTextureCount; ti++) {
         gl.framebufferTexture2D(
           gl.FRAMEBUFFER, 
           gl.COLOR_ATTACHMENT0 + ti, 
@@ -100,25 +102,25 @@ function main() {
       return fb
     }
     for(var i = 0; i < 2; i++) {
-      particleDataTextures[i] = []
-      for(var ti = 0; ti < particleDataTextureCount; ti++) {
-        particleDataTextures[i][ti] = createTexture()
+      particlePhysicsTextures[i] = []
+      for(var ti = 0; ti < particlePhysicsTextureCount; ti++) {
+        particlePhysicsTextures[i][ti] = createTexture()
       }
-      particleDataFrameBuffer[i] = createFramebuffer(particleDataTextures[i]) 
+      particlePhysicsFrameBuffer[i] = createFramebuffer(particlePhysicsTextures[i]) 
     }
   }
   
-  var updateParticleData = (dTime, toBuf) => { 
+  var updateParticlePhysics = (dTime, toBuf) => { 
     var fromBuf = 1 - toBuf
 
     gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, particleDataTextures[fromBuf][0])
+    gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[fromBuf][0])
     gl.activeTexture(gl.TEXTURE1)
-    gl.bindTexture(gl.TEXTURE_2D, particleDataTextures[fromBuf][1])
+    gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[fromBuf][1])
     gl.activeTexture(gl.TEXTURE2)
-    gl.bindTexture(gl.TEXTURE_2D, particleDataTextures[fromBuf][2])
+    gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[fromBuf][2])
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, particleDataFrameBuffer[toBuf])
+    gl.bindFramebuffer(gl.FRAMEBUFFER, particlePhysicsFrameBuffer[toBuf])
     gl.drawBuffers([
       gl.COLOR_ATTACHMENT0,
       gl.COLOR_ATTACHMENT1,
@@ -127,29 +129,58 @@ function main() {
     ])
 		gl.viewport(0, 0, particleCountSqrt, particleCountSqrt)
 
-    gl.useProgram(particleDataProgram) 
-    gl.uniform1f(particleDataUniformLocations.deltaTime, dTime)
+    gl.useProgram(particlePhysicsProgram) 
+    gl.uniform1f(particlePhysicsUniformLocations.deltaTime, dTime)
   
     gl.bindVertexArray(quadVao); 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-	var drawParticlesProgram = shaderTools.createProgramFromSources(
-    gl, [vsDrawParticles, fsDrawParticles]
+	var particleDrawProgram = shaderTools.createProgramFromSources(
+    gl, [vsParticleDraw, fsParticleDraw]
   )
-  gl.useProgram(drawParticlesProgram) 
-  var drawParticlesUniformLocations = getUniformLocations(gl, drawParticlesProgram, [
+  gl.useProgram(particleDrawProgram) 
+  var particleDrawUniformLocations = getUniformLocations(gl, particleDrawProgram, [
     'particlePositions', 
     'particleColors', 
     'particlePrecalcs',
-    'width',
+    'halfWidth',
+    'halfWidthPx',
     'particleCountSqrt'
   ])
-  gl.uniform1i(drawParticlesUniformLocations.particlePositions, 0)
-  gl.uniform1i(drawParticlesUniformLocations.particleColors, 1)
-  gl.uniform1i(drawParticlesUniformLocations.particlePrecalcs, 2)
-  gl.uniform1ui(drawParticlesUniformLocations.particleCountSqrt, particleCountSqrt) 
-  gl.uniform1f(drawParticlesUniformLocations.width, 1.1 / frameSize) 
+  gl.uniform1i(particleDrawUniformLocations.particlePositions, 0)
+  gl.uniform1i(particleDrawUniformLocations.particleColors, 1)
+  gl.uniform1i(particleDrawUniformLocations.particlePrecalcs, 2)
+  gl.uniform1ui(particleDrawUniformLocations.particleCountSqrt, particleCountSqrt) 
+  var halfWidthPx = 2;
+  gl.uniform1f(particleDrawUniformLocations.halfWidth, halfWidthPx * 2 / frameSize)
+  gl.uniform1f(particleDrawUniformLocations.halfWidthPx, halfWidthPx )
+
+  var frameTexture = []
+  var frameBuffer = []
+  for(var i = 0; i < 2; i++) {
+    frameTexture[i] = gl.createTexture()
+    gl.bindTexture(gl.TEXTURE_2D, frameTexture[i]) 
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0, 
+      gl.RGBA32F, 
+      frameSize, 
+      frameSize, 
+      0, 
+      gl.RGBA,
+      gl.FLOAT,
+      null
+    )
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); //TODO: LINEAR!
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    frameBuffer[i] = gl.createFramebuffer()
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer[i]) 
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameTexture[i], 0) 
+  }
 
   var particleSegmentsVao = gl.createVertexArray()
   gl.bindVertexArray(particleSegmentsVao)
@@ -180,55 +211,84 @@ function main() {
 
   var drawParticles = (fromBuf) => {
     gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, particleDataTextures[fromBuf][0]) 
+    gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[toBuf][0]) 
     gl.activeTexture(gl.TEXTURE1)
-    gl.bindTexture(gl.TEXTURE_2D, particleDataTextures[fromBuf][1]) 
+    gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[toBuf][1]) 
     gl.activeTexture(gl.TEXTURE2)
-    gl.bindTexture(gl.TEXTURE_2D, particleDataTextures[fromBuf][3]) 
+    gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[toBuf][3]) 
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer[toBuf]) 
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, null) //render to screen 
     gl.viewport(0,0,frameSize,frameSize)
     
-    gl.useProgram(drawParticlesProgram) 
+    gl.useProgram(particleDrawProgram) 
     gl.bindVertexArray(particleSegmentsVao) 
     
+    gl.enable(gl.BLEND)  
     gl.drawElements(gl.TRIANGLES, 6 * particleCount, gl.UNSIGNED_SHORT, 0)
+    gl.disable(gl.BLEND) 
   }
 
-  var texDebugQuadProgram = shaderTools.createProgramFromSources(
-    gl, [vsTexDebugQuad, fsTexDebugQuad]
+  var textureDrawProgram = shaderTools.createProgramFromSources(
+    gl, [vsTextureDraw, fsTextureDraw]
   )
-  gl.useProgram(texDebugQuadProgram)
-  var texDebugQuadUniformLocations = getUniformLocations(gl, texDebugQuadProgram, [
+  gl.useProgram(textureDrawProgram)
+  var textureDrawUniformLocations = getUniformLocations(gl, textureDrawProgram, [
     'position', 
     'size',
     'tex'
   ])
     
-  gl.uniform1i(texDebugQuadUniformLocations.tex, 0)
-  var drawDebugQuad = (glTexture, x, y, size) => {
+  gl.uniform1i(textureDrawUniformLocations.tex, 0)
+  var drawTexture = (glTexture, x, y, size) => {
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
     gl.viewport(0,0,frameSize, frameSize)
 
-    gl.useProgram(texDebugQuadProgram) 
-    gl.uniform2fv(texDebugQuadUniformLocations.position, [x,y]) 
-    gl.uniform1f(texDebugQuadUniformLocations.size, size)
+    gl.useProgram(textureDrawProgram) 
+    gl.uniform2fv(textureDrawUniformLocations.position, [x,y]) 
+    gl.uniform1f(textureDrawUniformLocations.size, size)
 
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, glTexture)
   
     gl.bindVertexArray(quadVao); 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
   } 
+
+  var postProcessProgram = shaderTools.createProgramFromSources(
+    gl, [vsPostProcess, fsPostProcess]
+  )
+  gl.useProgram(postProcessProgram) 
+  var postProcessUniformLocations = getUniformLocations(gl, postProcessProgram, [
+    'frameTexture',
+    'deltaTime'
+  ])
+  gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
+
+  var postProcess = (dTime, toBuf) => {
+    var fromBuf = 1 - toBuf
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer[toBuf]) 
+    gl.viewport(0,0,frameSize, frameSize) 
+  
+    gl.useProgram(postProcessProgram) 
+    gl.uniform1f(postProcessUniformLocations.deltaTime, dTime) 
+
+    gl.activeTexture(gl.TEXTURE0) 
+    gl.bindTexture(gl.TEXTURE_2D, frameTexture[fromBuf]) 
+  
+    gl.bindVertexArray(quadVao)
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+  }
 
   //init stuff
   gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
   gl.cullFace(gl.FRONT_AND_BACK)
 
-  //gl.enable(gl.BLEND) 
-  //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) 
+  gl.enable(gl.BLEND) 
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE) 
+  gl.disable(gl.BLEND) 
 
 
   var dTime, now, then = Date.now()
@@ -240,19 +300,21 @@ function main() {
     
     toBuf = 1 - toBuf
 
-    updateParticleData(dTime, toBuf) //debug: schreibt in den screen buffer
+    updateParticlePhysics(dTime, toBuf) //debug: schreibt in den screen buffer
+    postProcess(dTime, toBuf) 
     drawParticles(toBuf)
+    drawTexture(frameTexture[toBuf], 0, 0, 2)
     
     var width = 2 * particleCountSqrt / frameSize
-    for(var i = 0; i < particleDataTextureCount; i++) {
-      drawDebugQuad(
-        particleDataTextures[toBuf][i], 
+    for(var i = 0; i < particlePhysicsTextureCount; i++) {
+      drawTexture(
+        particlePhysicsTextures[toBuf][i], 
         -1 + width * (1.5 * i+1), 
         -1 + width, 
         width
       )
     }
-    setTimeout(() => { requestAnimationFrame(loop) })
+    setTimeout(() => { requestAnimationFrame(loop) },50)
   }
   requestAnimationFrame(loop) 
 }
