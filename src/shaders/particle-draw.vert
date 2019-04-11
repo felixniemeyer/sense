@@ -12,6 +12,7 @@ uniform sampler2D particlePrecalcs;
 uniform uint particleCountSqrt; 
 uniform float halfWidth;
 uniform float halfWidthPx;
+uniform vec2 playerPosition; 
 
 out vec4 color; 
 out float leftRight;
@@ -52,7 +53,7 @@ void main() {
 	}
 
 	color = p.color; 
-	gl_Position = vec4(position.x, position.y, 0, 1);
+	gl_Position = vec4(position - playerPosition, 0, 1);
 }
 
 Particle getParticle(in vec2 ts) {

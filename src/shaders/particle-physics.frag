@@ -14,7 +14,9 @@ uniform sampler2D particleVelocities;
 uniform float deltaTime; 
 uniform bool preventRespawn;
 uniform vec2 playerPosition;
+uniform vec2 cameraPosition;
 uniform float particleSpeedPerSecond;
+uniform int mode;
 
 layout(location = 0) out vec4 partPosOut;
 layout(location = 1) out vec4 partColOut; 
@@ -104,7 +106,7 @@ bool particleTooDark(in Particle p) {
 }
 
 bool particleTurnsTooFast(in Particle p) {
-	return abs(p.rotation) > 2.0 * PI;
+	return abs(p.rotation) > 1.5* PI;
 }
 
 void disableParticle(inout Particle p) {
@@ -113,16 +115,29 @@ void disableParticle(inout Particle p) {
 }
 
 void respawnParticle(inout Particle p) {
-	float rotationF = random(p, 1.23, 98.078, 29.102, -1.0, 1.0);
-	float speedF = random(p, 2.19, 0.313, 81.23, 0.1, 1.0);
 	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);
-	float red = random(p, 1.123, 2.89, 89.21, 0.4, 1.0); 
 
-	p.velocity = vec2(cos(direction), sin(direction)) * particleSpeedPerSecond * speedF;  
-	p.A = vec2(0, 0);
+	p.velocity = vec2(cos(direction), sin(direction)) * particleSpeedPerSecond;  
+	if(mode == 0) {
+		p.velocity = p.velocity * random(p, 2.19, 0.313, 81.23, 0.1, 1.0);
+	}
+	p.A = playerPosition;
 	p.B = p.A;
-	p.color = vec4(red,0.5,0.9,1);
-	p.rotation = rotationF * 2.0 * PI / 10.0; //1 rotation per 10 seconds
+
+	if(mode == 0) {
+		float red = random(p, 1.123, 2.89, 89.21, 0.4, 1.0); 
+		p.color = vec4(red,0.5,0.9,1);
+	} else {
+		p.color = vec4(1,1,1,1);
+	}
+
+	if(mode == 0) { //menu
+		float rotationF = random(p, 1.23, 98.078, 29.102, -1.0, 1.0);
+		rotationF = pow(rotationF, 3.0); //less quick turners
+		p.rotation = rotationF * 2.0 * PI / 10.0; //1 rotation per 10 seconds
+	} else if(mode == 1) { //game
+		p.rotation = 0.0;
+	}
 	p.rotationAdd = -p.rotation;
 }
 

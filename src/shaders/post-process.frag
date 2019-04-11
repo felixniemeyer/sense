@@ -12,5 +12,7 @@ in vec2 ts;
 out vec4 fragColor; 
 
 void main() {
-	fragColor = pow(0.85, deltaTime) * texture(frameTexture, ts);
+	float d = length(ts - vec2(0.5,0.5)) * 2.0;
+	d = 1.0 - (1.0 / (1.0 - min(d, 1.0) + 0.1)) * 0.1;
+	fragColor = pow(d * 0.95, deltaTime) * texture(frameTexture, ts);
 }

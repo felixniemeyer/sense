@@ -1,4 +1,5 @@
 import shaderTools from './webgl2tools.js'
+import GamePlay from './game-play.js'
 import vsParticlePhysics from './shaders/particle-physics.vert'
 import fsParticlePhysics from './shaders/particle-physics.frag'
 import vsParticleDraw from './shaders/particle-draw.vert'
@@ -9,9 +10,13 @@ import vsPostProcess from './shaders/post-process.vert'
 import fsPostProcess from './shaders/post-process.frag'
 
 function main() {
-  var frameSize = 1024
-  var particleCountSqrt = 16
-  var particleCount = particleCountSqrt * particleCountSqrt
+  //Params to play with
+  var frameSize = 1024  
+  var particleCountSqrt = 32
+  var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
+  var halfWidthPx = 1.3
+
+
   var particlePhysicsTextureCount = 4
 
 	var canvas = document.getElementById("canvas")
@@ -55,14 +60,18 @@ function main() {
     'deltaTime', 
     'preventRespawn', 
     'playerPosition', 
-    'particleSpeedPerSecond'
+    'cameraPosition',
+    'particleSpeedPerSecond',
+    'mode'
   ])
   gl.uniform1i(particlePhysicsUniformLocations.particlePositions, 0)
   gl.uniform1i(particlePhysicsUniformLocations.particleColors, 1)
   gl.uniform1i(particlePhysicsUniformLocations.particleVelocities, 2)
   gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, 0)
   gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
+  gl.uniform2fv(particlePhysicsUniformLocations.cameraPosition, [0, 0])
   gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, 0.3)
+  gl.uniform1i(particlePhysicsUniformLocations.mode, 0)
 
   var dataBuffer
   var particlePhysicsTextures = []
@@ -131,6 +140,7 @@ function main() {
 
     gl.useProgram(particlePhysicsProgram) 
     gl.uniform1f(particlePhysicsUniformLocations.deltaTime, dTime)
+    gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, gamePlay.getPlayerPositionArr()) 
   
     gl.bindVertexArray(quadVao); 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -144,15 +154,15 @@ function main() {
     'particlePositions', 
     'particleColors', 
     'particlePrecalcs',
+    'particleCountSqrt',
     'halfWidth',
     'halfWidthPx',
-    'particleCountSqrt'
+    'playerPosition'
   ])
   gl.uniform1i(particleDrawUniformLocations.particlePositions, 0)
   gl.uniform1i(particleDrawUniformLocations.particleColors, 1)
   gl.uniform1i(particleDrawUniformLocations.particlePrecalcs, 2)
   gl.uniform1ui(particleDrawUniformLocations.particleCountSqrt, particleCountSqrt) 
-  var halfWidthPx = 2;
   gl.uniform1f(particleDrawUniformLocations.halfWidth, halfWidthPx * 2 / frameSize)
   gl.uniform1f(particleDrawUniformLocations.halfWidthPx, halfWidthPx )
 
@@ -222,6 +232,8 @@ function main() {
     gl.viewport(0,0,frameSize,frameSize)
     
     gl.useProgram(particleDrawProgram) 
+    gl.uniform2fv(particleDrawUniformLocations.playerPosition, gamePlay.getPlayerPositionArr()) 
+
     gl.bindVertexArray(particleSegmentsVao) 
     
     gl.enable(gl.BLEND)  
@@ -290,6 +302,7 @@ function main() {
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE) 
   gl.disable(gl.BLEND) 
 
+  var gamePlay = new GamePlay()
 
   var dTime, now, then = Date.now()
   var toBuf = 1
@@ -314,6 +327,9 @@ function main() {
         width
       )
     }
+  
+    gamePlay.step(dTime) 
+  
     setTimeout(() => { requestAnimationFrame(loop) },50)
   }
   requestAnimationFrame(loop) 
