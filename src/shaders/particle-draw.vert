@@ -13,9 +13,15 @@ uniform uint particleCountSqrt;
 uniform float halfWidth;
 uniform float halfWidthPx;
 uniform vec2 playerPosition; 
+uniform float decay;
+uniform float decayCircleFactor; 
+uniform float dTime; 
+uniform vec2 shift; 
+	
 
 out vec4 color; 
 out float leftRight;
+out float alphaFactor;
 
 struct Particle {
 	vec2 A;
@@ -36,10 +42,15 @@ void main() {
 	ts.y = float(y) / float(particleCountSqrt);
 	Particle p = getParticle(ts);
 
-	vec2 position; 
+	//Position A gescheit berechnen (shift miteinfließen lassen... natürlich!) 
+	p.A = p.A - shift; 
 	
+	vec2 position; 
+	bool isA = false; 
+
 	if(edge == 0u) {
 		position = p.A - p.perpendicular * halfWidth;
+		isA = true;
 		leftRight = -halfWidthPx;
 	} else if(edge == 1u) {
 		position = p.B - p.perpendicular * halfWidth; 
@@ -49,7 +60,16 @@ void main() {
 		leftRight = halfWidthPx;
 	} else if(edge == 3u) {
 		position = p.A + p.perpendicular * halfWidth; 
+		isA = true;
 		leftRight = halfWidthPx;
+	}
+
+	if(isA) {
+		float d = length(position - playerPosition);
+		d = 1.0 - (1.0 / (1.0 - min(d, 1.0) + decayCircleFactor)) * decayCircleFactor;
+		alphaFactor = pow(d * decay, dTime);
+	} else {
+		alphaFactor = 1.0;
 	}
 
 	color = p.color; 

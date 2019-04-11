@@ -4,6 +4,7 @@ precision highp int;
 precision highp float; 
 
 in float leftRight;
+in float alphaFactor; 
 in vec4 color; 
 
 uniform float halfWidthPx;
@@ -15,5 +16,6 @@ void main() {
 	if(abs(leftRight) > halfWidthPx - 1.0) {
 		aa = halfWidthPx - abs(leftRight); 
 	}
+	aa *= alphaFactor;
 	fragColor = vec4(color.rgb, color.a * aa);
 }

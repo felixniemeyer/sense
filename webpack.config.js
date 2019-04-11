@@ -15,6 +15,10 @@ module.exports = {
       {
         test: /\.vert$/,
         use: 'raw-loader'
+      }, 
+      {
+        test: /\.png$/,
+        use: 'url-loader'
       }
     ]
   }

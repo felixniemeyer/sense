@@ -1,20 +1,17 @@
-function vec2(x, y){
-  return {x, y}
-}
-
-function length(vec){
-  return Math.sqrt(Math.pow(vec.x, 2) + Math.pow(vec.y, 2)) 
-}
+import Vec2 from './vec2.js'
 
 export default class GamePlay {
   constructor(gameParams) {
     this.params = gameParams || {
-      playerAcceleration: 0.1
+      playerAcceleration: 0.6,
+      playerFriction: 0.02
     }
-      
-    this.playerPosition = vec2(0,0)
-    this.playerVelocity = vec2(0,0)
-    this.cameraPosition = vec2(0,0)
+    
+    this.emitting = true;       
+    this.playerPosition = new Vec2(0,0)
+    this.previousPlayerPosition = new Vec2(0,0)
+    this.playerVelocity = new Vec2(0,0)
+    this.cameraPosition = new Vec2(0,0)
     this.enableInput()
   }
 
@@ -22,6 +19,12 @@ export default class GamePlay {
     this.keydowns = {}
     document.addEventListener('keydown', (ev) => {
       this.keydowns[ev.code] = true
+      switch(ev.code) {
+        case 'Space':
+          this.emitting = !this.emitting
+          break
+        default:
+      }
     })
     document.addEventListener('keyup', (ev) => {
       if(ev.code in this.keydowns){
@@ -32,12 +35,13 @@ export default class GamePlay {
 
   step(dTime) {
     this.considerInput(dTime)
-    this.playerPosition.x += this.playerVelocity.x * dTime
-    this.playerPosition.y += this.playerVelocity.y * dTime
+    this.previousPlayerPosition = this.playerPosition.copy()
+    this.playerPosition.addInPlace(this.playerVelocity.scale(dTime))
+    this.playerVelocity.scaleInPlace(Math.pow(this.params.playerFriction, dTime))
   }
 
   considerInput(dTime) {
-    var accelerationVector = vec2(0,0)
+    var accelerationVector = new Vec2(0,0)
     if(this.keydowns['ArrowUp']){
       accelerationVector.y += 1   
     }
@@ -50,29 +54,35 @@ export default class GamePlay {
     if(this.keydowns['ArrowLeft']){
       accelerationVector.x += -1   
     }
-    var len = length(accelerationVector) 
+    var len = accelerationVector.length()
     if(len > 0) {
       var f = 1 / len * dTime * this.params.playerAcceleration;
-      this.playerVelocity.x += f * accelerationVector.x 
-      this.playerVelocity.y += f * accelerationVector.y
+      this.playerVelocity.addInPlace(accelerationVector.scale(f))
     }
 
     if(this.keydowns['ShiftLeft']){ //spurt
       
     }
     if(this.keydowns['Space']){ //assasinator mode
-      
     }
     if(this.keydowns['KeyD']){ //deploy item 
       
     }
   }
 
-  getPlayerPositionArr() {
-    return [this.playerPosition.x, this.playerPosition.y]
+  getPlayerPosition() {
+    return this.playerPosition.toArray()
+  }
+
+  getPlayerPositionShift() {
+    return this.playerPosition.subtract(this.previousPlayerPosition).toArray()
   }
 
   getCameraPosition() {
-    return this.cameraPosition
+    return this.cameraPosition.toArray()
+  }
+
+  getEmitting() {
+    return this.emitting
   }
 }

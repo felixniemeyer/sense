@@ -11,7 +11,7 @@ in vec2 ts;
 uniform sampler2D particlePositions;
 uniform sampler2D particleColors;
 uniform sampler2D particleVelocities;
-uniform float deltaTime; 
+uniform float dTime; 
 uniform bool preventRespawn;
 uniform vec2 playerPosition;
 uniform vec2 cameraPosition;
@@ -56,16 +56,16 @@ void main()
 		}
 	} 
 	
-	vec2 newPos = p.B + p.velocity * deltaTime;
+	vec2 newPos = p.B + p.velocity * dTime;
 
-	float r = p.rotation * deltaTime; 
+	float r = p.rotation * dTime; 
 	mat2 Rotation = mat2(
 		cos(r), -sin(r), 
 		sin(r), cos(r)
 	);
 	p.velocity = Rotation * p.velocity;
 
-	p.rotation += p.rotationAdd * deltaTime;
+	p.rotation += p.rotationAdd * dTime;
 
 	//TODO: check collision, mirror velocity, set position, decrement rgba
 
