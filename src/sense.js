@@ -92,9 +92,11 @@ function main() {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0)
 
     gl.deleteFramebuffer(framebuffer)
+
+    run()
   }
   image.src = map_skull
-    
+
   var quadVao = createQuadVao(gl) 
 
   console.log('building particlePhysicsProgram program')
@@ -433,12 +435,15 @@ function main() {
         width
       )
     }
-  
+    
     setTimeout(() => { 
       if(!stop) requestAnimationFrame(loop) 
     }, 0)
   }
-  requestAnimationFrame(loop) 
+  
+  var run = () => {
+    requestAnimationFrame(loop) 
+  }
 }
 
 function createQuadVao(gl) {
