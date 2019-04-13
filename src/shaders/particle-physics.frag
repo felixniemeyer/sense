@@ -66,8 +66,13 @@ void main()
 		}
 	} 
 	
+	//position
 	vec2 newPos = p.B + p.velocity * dTime;
 
+	//TODO: check collision, mirror velocity, set position, decrement rgba
+	mapCollisionCheck(p, newPos);
+
+	//velocity
 	float r = p.rotation * dTime; 
 	mat2 Rotation = mat2(
 		cos(r), -sin(r), 
@@ -75,11 +80,8 @@ void main()
 	);
 	p.velocity = Rotation * p.velocity;
 
+	//rotation
 	p.rotation += p.rotationAdd * dTime;
-
-	//TODO: check collision, mirror velocity, set position, decrement rgba
-
-	mapCollisionCheck(p, newPos);
 
 	p.A = p.B - shift;
 	p.B = newPos;
@@ -176,23 +178,24 @@ bool mayBounce(
 	in vec2 v, 
 	inout Particle p, 
 	inout vec2 newPos, 
+	inout vec2 prevPos,
 	in vec2 unitsToLine ) 
 {
 	vec2 wallTileIndex = tileIndex; 
-	wallTileIndex[axis] += sign(v[axis]); // müsste das nicht 1-axis sein?
-	vec4 tileValue = texture(map, wallTileIndex); // texture not readable, obwohl es ok ausguckt
+	wallTileIndex[axis] += sign(v[axis]); 
+	vec4 tileValue = texture(map, wallTileIndex / 256.0 + 0.5); // texture not readable, obwohl es ok ausguckt
 
 	float units;
 
-	if(tileValue.a == 255.0) { // TRY: == 1.0
+	if( tileValue.a == 1.0) { // TRY: == 1.0
 		p.velocity[axis] = - p.velocity[axis];
 		units = (v[axis] * unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0) / v[axis]; // das erste produkt sollte positiv sein, damit bleibt 
-		p.color = tileValue.rgba;
-		newPos = newPos + units * v;
+		// p.color = tileValue.rgba;
+		newPos = newPos + v[axis] * v;
 		return true;
 	} else {
 		units = (v[axis] * unitsToLine[axis] + sign(v[axis]) * tileSize / 100.0) / v[axis]; // das erste produkt sollte positiv sein, damit bleibt 
-		newPos = newPos + units * v;
+		prevPos = prevPos + v[axis] * v;
 		return false; 
 	}
 }
@@ -206,28 +209,28 @@ void mapCollisionCheck(inout Particle p, inout vec2 newPos) {
 	float tile; 
 	for(int i = 0;  i < maxIntersectionChecks; i++) {
 		v = newPos - prevPos;
-		tileIndex = floor(prevPos);
+		tileIndex = floor(prevPos / tileSize);
 		nextLineIndex = tileIndex + (sign(v) + vec2(1,1)) * 0.5;
 		unitsToLine = (nextLineIndex * tileSize - prevPos) / v; 
 
 		if(unitsToLine.x >= 0.0 && unitsToLine.x <= 1.0) {
 			if(unitsToLine.y >= 0.0 && unitsToLine.y <= 1.0) {
 				if(unitsToLine.x < unitsToLine.y) {
-					if(mayBounce(0, tileIndex, v, p, newPos, unitsToLine)) {
+					if(mayBounce(0, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
 						return;
 					}
 				} else {
-					if(mayBounce(1, tileIndex, v, p, newPos, unitsToLine)) {
+					if(mayBounce(1, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
 						return;
 					}
 				}
 			} else {
-				if(mayBounce(0, tileIndex, v, p, newPos, unitsToLine)) {
+				if(mayBounce(0, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
 					return;
 				}
 			}
 		} else if(unitsToLine.y >= 0.0 && unitsToLine.y <= 1.0) {
-			if(mayBounce(1, tileIndex, v, p, newPos, unitsToLine)) {
+			if(mayBounce(1, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
 				return;
 			}
 		} else {

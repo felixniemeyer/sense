@@ -17,10 +17,10 @@ function main() {
 
   //Params to play with
   var frameSize = 1024
-  var particleCountSqrt = 16
+  var particleCountSqrt = 32
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
   var halfWidth = 1.8 * 2 / frameSize
-  var particleSpeed = 0.5
+  var particleSpeed = 0.7
   var rayDecay = 0.9
   var rayDecayCircleFactor = 0.1
 
