@@ -11,18 +11,21 @@ import fsPostProcess from './shaders/post-process.frag'
 
 import map_skull from './maps/skull.png'
 
-function main(res) {
-  console.log(res.map) 
+function main() {
+
+  console.log(map_skull) 
 
   //Params to play with
   var frameSize = 1024
   var particleCountSqrt = 16
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
-  var halfWidthPx = 1.8
+  var halfWidth = 1.8 * 2 / frameSize
   var particleSpeed = 0.5
   var rayDecay = 0.9
   var rayDecayCircleFactor = 0.1
 
+  //map related config
+  var tileSize = 0.1 // update maxIntersectionChecks in ./shaders/particle-physics.frag accordingly
 
   var particlePhysicsTextureCount = 4
 
@@ -32,7 +35,7 @@ function main(res) {
 
 	var gl = canvas.getContext("webgl2", {
     preserveDrawingBuffer: true,
-//    premultipliedAlpha: false
+    premultipliedAlpha: false
   });
 	if (!gl) {
 		console.error("could not get webgl2 content")
@@ -56,35 +59,73 @@ function main(res) {
 		return; 
 	}
 
-  var origin = 0
-  var flip = () => {
-    origin = 1 - origin
-  }
+  //Preparing
+  var mapTexture = gl.createTexture()
+  var mapData
+  var image = new Image()
+  image.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, mapTexture) 
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true) 
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0, 
+      gl.RGBA8, 
+      256, 
+      256, 
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      image
+    )
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
+    var framebuffer = gl.createFramebuffer()
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, mapTexture, 0)
+
+    var mapData = new Uint8Array(image.width * image.height * 4)
+    gl.readPixels(0, 0, image.width, image.height, gl.RGBA, gl.UNSIGNED_BYTE, mapData)
+
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0)
+
+    gl.deleteFramebuffer(framebuffer)
+  }
+  image.src = map_skull
+    
   var quadVao = createQuadVao(gl) 
 
+  console.log('building particlePhysicsProgram program')
 	var particlePhysicsProgram = shaderTools.createProgramFromSources(gl, [vsParticlePhysics, fsParticlePhysics])
   gl.useProgram(particlePhysicsProgram)
   var particlePhysicsUniformLocations = getUniformLocations(gl, particlePhysicsProgram, [
     'particlePositions', 
     'particleColors', 
     'particleVelocities',
+    'particlePerpendiculars',
+    'map',
+    'shift',
     'dTime', 
     'preventRespawn', 
     'playerPosition', 
-    'cameraPosition',
     'particleSpeedPerSecond',
-    'mode'
+    'mode',
+    'tileSize'
   ])
   gl.uniform1i(particlePhysicsUniformLocations.particlePositions, 0)
   gl.uniform1i(particlePhysicsUniformLocations.particleColors, 1)
   gl.uniform1i(particlePhysicsUniformLocations.particleVelocities, 2)
+  gl.uniform1i(particlePhysicsUniformLocations.particlePerpendiculars, 3)
+  gl.uniform1i(particlePhysicsUniformLocations.map, 4)
+  gl.uniform2fv(particlePhysicsUniformLocations.shift, [0, 0]) // shift vielleicht ganzzahlig machen... textur dann auch vllt. von linear auf nearest.. Und dann halt noch den shift beim malen mitberücksichtigen... bei den perpendiculars... soo viele particle sind's jetzt auch nicht...
   var particleEmitting = 0
   gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, particleEmitting)
   gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
-  gl.uniform2fv(particlePhysicsUniformLocations.cameraPosition, [0, 0])
   gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, particleSpeed)
   gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
+  gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
 
   var dataBuffer
   var particlePhysicsTextures = []
@@ -132,7 +173,7 @@ function main(res) {
     }
   }
   
-  var updateParticlePhysics = (dTime, toBuf) => { 
+  var updateParticlePhysics = (dTime, toBuf, shift) => { 
     var fromBuf = 1 - toBuf
 
     gl.activeTexture(gl.TEXTURE0)
@@ -141,6 +182,10 @@ function main(res) {
     gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[fromBuf][1])
     gl.activeTexture(gl.TEXTURE2)
     gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[fromBuf][2])
+    gl.activeTexture(gl.TEXTURE3)
+    gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[fromBuf][3])
+    gl.activeTexture(gl.TEXTURE4)
+    gl.bindTexture(gl.TEXTURE_2D, mapTexture)
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, particlePhysicsFrameBuffer[toBuf])
     gl.drawBuffers([
@@ -154,6 +199,7 @@ function main(res) {
     gl.useProgram(particlePhysicsProgram) 
     gl.uniform1f(particlePhysicsUniformLocations.dTime, dTime)
     gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, gamePlay.getPlayerPosition()) 
+    gl.uniform2fv(particlePhysicsUniformLocations.shift, shift) 
     var newEmitting = gamePlay.getEmitting() ? 1 : 0
     if(newEmitting !== particleEmitting) {
       particleEmitting = newEmitting
@@ -164,6 +210,7 @@ function main(res) {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
+  console.log('building particleDraw program')
 	var particleDrawProgram = shaderTools.createProgramFromSources(
     gl, [vsParticleDraw, fsParticleDraw]
   )
@@ -171,23 +218,20 @@ function main(res) {
   var particleDrawUniformLocations = getUniformLocations(gl, particleDrawProgram, [
     'particlePositions', 
     'particleColors', 
-    'particlePrecalcs',
+    'particlePerpendiculars',
     'particleCountSqrt',
     'halfWidth',
-    'halfWidthPx',
     'playerPosition',
     'decay',
     'dTime',
-    'decayCircleFactor',
-    'shift'
+    'decayCircleFactor'
   ])
   // const
   gl.uniform1i(particleDrawUniformLocations.particlePositions, 0)
   gl.uniform1i(particleDrawUniformLocations.particleColors, 1)
-  gl.uniform1i(particleDrawUniformLocations.particlePrecalcs, 2)
+  gl.uniform1i(particleDrawUniformLocations.particlePerpendiculars, 2)
   gl.uniform1ui(particleDrawUniformLocations.particleCountSqrt, particleCountSqrt) 
-  gl.uniform1f(particleDrawUniformLocations.halfWidth, halfWidthPx * 2 / frameSize)
-  gl.uniform1f(particleDrawUniformLocations.halfWidthPx, halfWidthPx )
+  gl.uniform1f(particleDrawUniformLocations.halfWidth, halfWidth )
   gl.uniform1f(particleDrawUniformLocations.decay, rayDecay)
   gl.uniform1f(particleDrawUniformLocations.decayCircleFactor, rayDecayCircleFactor)
   // dynamic 
@@ -263,7 +307,6 @@ function main(res) {
     gl.useProgram(particleDrawProgram) 
     gl.uniform2fv(particleDrawUniformLocations.playerPosition, gamePlay.getPlayerPosition()) 
     gl.uniform1f(particleDrawUniformLocations.dTime, dTime)
-    gl.uniform2fv(particleDrawUniformLocations.shift, gamePlay.getPlayerPositionShift())
 
     gl.bindVertexArray(particleSegmentsVao) 
     
@@ -272,6 +315,7 @@ function main(res) {
     gl.disable(gl.BLEND) 
   }
 
+  console.log('building textreDraw program')
   var textureDrawProgram = shaderTools.createProgramFromSources(
     gl, [vsTextureDraw, fsTextureDraw]
   )
@@ -299,6 +343,7 @@ function main(res) {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   } 
 
+  console.log('building postProcess program')
   var postProcessProgram = shaderTools.createProgramFromSources(
     gl, [vsPostProcess, fsPostProcess]
   )
@@ -315,7 +360,7 @@ function main(res) {
   gl.uniform1f(postProcessUniformLocations.decayCircleFactor, rayDecayCircleFactor) 
   gl.uniform2fv(postProcessUniformLocations.shift, [0,0])
 
-  var postProcess = (dTime, toBuf) => {
+  var postProcess = (dTime, toBuf, shift) => {
     var fromBuf = 1 - toBuf
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer[toBuf]) 
@@ -323,7 +368,7 @@ function main(res) {
   
     gl.useProgram(postProcessProgram) 
     gl.uniform1f(postProcessUniformLocations.dTime, dTime) 
-    gl.uniform2fv(postProcessUniformLocations.shift, gamePlay.getPlayerPositionShift())
+    gl.uniform2fv(postProcessUniformLocations.shift, shift) 
 
     gl.activeTexture(gl.TEXTURE0) 
     gl.bindTexture(gl.TEXTURE_2D, frameTexture[fromBuf]) 
@@ -337,10 +382,22 @@ function main(res) {
   gl.cullFace(gl.FRONT_AND_BACK)
 
   gl.enable(gl.BLEND) 
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE) 
+  gl.blendFunc(gl.SRC_ALPHA, gl.DST_ALPHA)
   gl.disable(gl.BLEND) 
 
   var gamePlay = new GamePlay()
+
+  var shift = []
+  var lastPlayerPos = [0,0]
+
+  var stop = false
+
+  document.addEventListener('keydown', (ev) => {
+    if(ev.code === 'Escape'){
+      stop = !stop
+      if(stop === false) requestAnimationFrame(loop) 
+    }
+  })
 
   var dTime, now, then = Date.now()
   var toBuf = 1
@@ -351,11 +408,22 @@ function main(res) {
     
     toBuf = 1 - toBuf
 
-    updateParticlePhysics(dTime, toBuf) //debug: schreibt in den screen buffer
-    postProcess(dTime, toBuf) 
+    gamePlay.step(dTime) 
+
+    var playerPos = gamePlay.getPlayerPosition().map(v => (v)) 
+    shift[0] = (playerPos[0] - lastPlayerPos[0])
+    shift[1] = (playerPos[1] - lastPlayerPos[1])
+    lastPlayerPos[0] = playerPos[0]
+    lastPlayerPos[1] = playerPos[1]
+
+    updateParticlePhysics(dTime, toBuf, shift)
+    postProcess(dTime, toBuf, shift) 
     drawParticles(dTime, toBuf)
+
     drawTexture(frameTexture[toBuf], 0, 0, 2)
     
+    drawTexture(mapTexture, -0.5, 0.5, 0.7)
+
     var width = 2 * particleCountSqrt / frameSize
     for(var i = 0; i < particlePhysicsTextureCount; i++) {
       drawTexture(
@@ -366,9 +434,9 @@ function main(res) {
       )
     }
   
-    gamePlay.step(dTime) 
-  
-    setTimeout(() => { requestAnimationFrame(loop) },0)
+    setTimeout(() => { 
+      if(!stop) requestAnimationFrame(loop) 
+    }, 0)
   }
   requestAnimationFrame(loop) 
 }
@@ -401,47 +469,4 @@ function getUniformLocations(gl, program, uniformNames) {
   return uniformMap
 }
 
-class ResList {
-  constructor(onDone) {
-    this.pendingRes = {}
-    this.res = {}
-    this.counter = 0
-    this.onDone = onDone
-  }
-
-  enable() {
-    this.enabled = true
-    this.checkForDone()
-  }
-  
-  checkForDone() {
-    if(this.enabled && Object.keys(this.pendingRes).length <= 0) {
-      this.onDone(this.res)
-    }
-  }
-
-  add(resName) {
-    var resId = this.counter++
-    this.pendingRes[resId] = resName
-    return (res) => {
-      this.complete(resId, res) 
-    }
-  }
-
-  complete(resId, res) {
-    this.res[this.pendingRes[resId]] = res
-    delete this.pendingRes[resId]
-    this.checkForDone()
-  }
-}
-
-var resList = new ResList(main)
-
-var imageLoaded = resList.add('map')
-var image = new Image()
-image.addEventListener('load', () => {
-  imageLoaded(image) 
-})
-image.src = map_skull
-
-resList.enable()
+main()

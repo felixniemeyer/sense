@@ -3,7 +3,7 @@ import Vec2 from './vec2.js'
 export default class GamePlay {
   constructor(gameParams) {
     this.params = gameParams || {
-      playerAcceleration: 0.6,
+      playerAcceleration: 1,
       playerFriction: 0.02
     }
     
@@ -72,10 +72,6 @@ export default class GamePlay {
 
   getPlayerPosition() {
     return this.playerPosition.toArray()
-  }
-
-  getPlayerPositionShift() {
-    return this.playerPosition.subtract(this.previousPlayerPosition).toArray()
   }
 
   getCameraPosition() {

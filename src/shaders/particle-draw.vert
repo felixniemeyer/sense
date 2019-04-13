@@ -8,10 +8,9 @@ layout (location = 0) in uvec2 vert;
 
 uniform sampler2D particlePositions;
 uniform sampler2D particleColors;
-uniform sampler2D particlePrecalcs;
+uniform sampler2D particlePerpendiculars;
 uniform uint particleCountSqrt; 
 uniform float halfWidth;
-uniform float halfWidthPx;
 uniform vec2 playerPosition; 
 uniform float decay;
 uniform float decayCircleFactor; 
@@ -27,7 +26,8 @@ struct Particle {
 	vec2 A;
 	vec2 B;
 	vec4 color;
-	vec2 perpendicular;
+	vec2 perpendicularA;
+	vec2 perpendicularB;
 };
 	
 Particle getParticle(in vec2 ts);
@@ -42,26 +42,23 @@ void main() {
 	ts.y = float(y) / float(particleCountSqrt);
 	Particle p = getParticle(ts);
 
-	//Position A gescheit berechnen (shift miteinfließen lassen... natürlich!) 
-	p.A = p.A - shift; 
-	
 	vec2 position; 
 	bool isA = false; 
 
 	if(edge == 0u) {
-		position = p.A - p.perpendicular * halfWidth;
+		position = p.A - p.perpendicularA * halfWidth;
 		isA = true;
-		leftRight = -halfWidthPx;
+		leftRight = -1.0;
 	} else if(edge == 1u) {
-		position = p.B - p.perpendicular * halfWidth; 
-		leftRight = -halfWidthPx;
+		position = p.B - p.perpendicularB * halfWidth; 
+		leftRight = -1.0;
 	} else if(edge == 2u) {
-		position = p.B + p.perpendicular * halfWidth; 
-		leftRight = halfWidthPx;
+		position = p.B + p.perpendicularB * halfWidth; 
+		leftRight = 1.0;
 	} else if(edge == 3u) {
-		position = p.A + p.perpendicular * halfWidth; 
+		position = p.A + p.perpendicularA * halfWidth; 
 		isA = true;
-		leftRight = halfWidthPx;
+		leftRight = 1.0;
 	}
 
 	if(isA) {
@@ -84,8 +81,9 @@ Particle getParticle(in vec2 ts) {
 
 	p.color = texture(particleColors, ts);
 
-	vec4 precalcs = texture(particlePrecalcs, ts);
-	p.perpendicular = precalcs.xy;
+	vec4 perpendiculars = texture(particlePerpendiculars, ts);
+	p.perpendicularB = perpendiculars.xy;
+	p.perpendicularA = perpendiculars.zw;
 	
 	return p;
 }

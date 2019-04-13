@@ -11,12 +11,20 @@ in vec2 ts;
 uniform sampler2D particlePositions;
 uniform sampler2D particleColors;
 uniform sampler2D particleVelocities;
+uniform sampler2D particlePerpendiculars; 
+uniform sampler2D map; 
+uniform vec2 shift; 
 uniform float dTime; 
 uniform bool preventRespawn;
 uniform vec2 playerPosition;
-uniform vec2 cameraPosition;
 uniform float particleSpeedPerSecond;
 uniform int mode;
+uniform float tileSize; 
+
+const int maxIntersectionChecks = 2 * 10; /* explanation 
+	2: x and y intersections
+	10: 1 / tileSize, needs to be updated manually!
+*/
 
 layout(location = 0) out vec4 partPosOut;
 layout(location = 1) out vec4 partColOut; 
@@ -30,6 +38,7 @@ struct Particle {
 	float rotation;
 	float rotationAdd;
 	vec4 color;
+	vec2 perpendicular;
 };
 
 Particle getParticle();
@@ -39,6 +48,7 @@ bool particleTurnsTooFast(in Particle p);
 float random(in Particle p, in float v1, in float v2, in float v3, in float from, in float to);
 void disableParticle(inout Particle p); 
 void respawnParticle(inout Particle p); 
+void mapCollisionCheck(inout Particle p, inout vec2 newPos);
 void writeParticle(in Particle p);
 
 
@@ -69,7 +79,9 @@ void main()
 
 	//TODO: check collision, mirror velocity, set position, decrement rgba
 
-	p.A = p.B;
+	mapCollisionCheck(p, newPos);
+
+	p.A = p.B - shift;
 	p.B = newPos;
 	
 	writeParticle(p);
@@ -89,6 +101,8 @@ Particle getParticle() {
 	p.velocity = velocity.xy;
 	p.rotation = velocity.z;
 	p.rotationAdd = velocity.w;
+
+	p.perpendicular = texture(particlePerpendiculars, ts).xy;
 	
 	return p;
 }
@@ -115,21 +129,6 @@ void disableParticle(inout Particle p) {
 }
 
 void respawnParticle(inout Particle p) {
-	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);
-
-	p.velocity = vec2(cos(direction), sin(direction)) * particleSpeedPerSecond;  
-	if(mode == 0) {
-		p.velocity = p.velocity * random(p, 2.19, 0.313, 81.23, 0.1, 1.0);
-	}
-	p.A = playerPosition;
-	p.B = p.A;
-
-	if(mode == 0) {
-		float red = random(p, 1.123, 2.89, 89.21, 0.4, 1.0); 
-		p.color = vec4(red,0.5,0.9,1);
-	} else {
-		p.color = vec4(1,1,1,1);
-	}
 
 	if(mode == 0) { //menu
 		float rotationF = random(p, 1.23, 98.078, 29.102, -1.0, 1.0);
@@ -138,17 +137,103 @@ void respawnParticle(inout Particle p) {
 	} else if(mode == 1) { //game
 		p.rotation = 0.0;
 	}
-	p.rotationAdd = -p.rotation;
+	p.rotationAdd = - 0.5 * p.rotation;
+
+	if(mode == 0) {
+		float red = random(p, 1.123, 2.89, 89.21, 0.4, 1.0); 
+		p.color = vec4(red,0.5,0.9,1);
+	} else {
+		p.color = vec4(1,1,1,1);
+	}
+
+	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);
+	float speed = particleSpeedPerSecond;
+	if(mode == 0) {
+		speed *= random(p, 2.19, 0.313, 81.23, 0.3, 1.0);
+	}
+	p.velocity = vec2(cos(direction), sin(direction)) * speed;  
+
+	p.A = playerPosition;
+	p.B = p.A;
+
+	p.perpendicular = vec2(p.velocity.y, -p.velocity.x) / speed;
 }
 
 float random(in Particle p, in float v1, in float v2, in float v3, in float from, in float to) {
 	float range = to - from; 
-	return mod(
-		v1 * ts.y + 
-		v1 * 72.3123 * ts.x +
-		v2 * abs(p.B.x) +
-		v3 * abs(p.B.y),
+	return mod( range * (
+			v1 * ts.y + 
+			v1 * 72.3123 * ts.x +
+			v2 * abs(p.B.x) +
+			v3 * abs(p.B.y) 
+		),
 		range) + from;
+}
+
+bool mayBounce(
+	in int axis, 
+	in vec2 tileIndex, 
+	in vec2 v, 
+	inout Particle p, 
+	inout vec2 newPos, 
+	in vec2 unitsToLine ) 
+{
+	vec2 wallTileIndex = tileIndex; 
+	wallTileIndex[axis] += sign(v[axis]); // müsste das nicht 1-axis sein?
+	vec4 tileValue = texture(map, wallTileIndex); // texture not readable, obwohl es ok ausguckt
+
+	float units;
+
+	if(tileValue.a == 255.0) { // TRY: == 1.0
+		p.velocity[axis] = - p.velocity[axis];
+		units = (v[axis] * unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0) / v[axis]; // das erste produkt sollte positiv sein, damit bleibt 
+		p.color = tileValue.rgba;
+		newPos = newPos + units * v;
+		return true;
+	} else {
+		units = (v[axis] * unitsToLine[axis] + sign(v[axis]) * tileSize / 100.0) / v[axis]; // das erste produkt sollte positiv sein, damit bleibt 
+		newPos = newPos + units * v;
+		return false; 
+	}
+}
+
+void mapCollisionCheck(inout Particle p, inout vec2 newPos) {
+	vec2 prevPos = p.B; 
+	vec2 v;
+	vec2 nextLineIndex;
+	vec2 unitsToLine;
+	vec2 tileIndex; 
+	float tile; 
+	for(int i = 0;  i < maxIntersectionChecks; i++) {
+		v = newPos - prevPos;
+		tileIndex = floor(prevPos);
+		nextLineIndex = tileIndex + (sign(v) + vec2(1,1)) * 0.5;
+		unitsToLine = (nextLineIndex * tileSize - prevPos) / v; 
+
+		if(unitsToLine.x >= 0.0 && unitsToLine.x <= 1.0) {
+			if(unitsToLine.y >= 0.0 && unitsToLine.y <= 1.0) {
+				if(unitsToLine.x < unitsToLine.y) {
+					if(mayBounce(0, tileIndex, v, p, newPos, unitsToLine)) {
+						return;
+					}
+				} else {
+					if(mayBounce(1, tileIndex, v, p, newPos, unitsToLine)) {
+						return;
+					}
+				}
+			} else {
+				if(mayBounce(0, tileIndex, v, p, newPos, unitsToLine)) {
+					return;
+				}
+			}
+		} else if(unitsToLine.y >= 0.0 && unitsToLine.y <= 1.0) {
+			if(mayBounce(1, tileIndex, v, p, newPos, unitsToLine)) {
+				return;
+			}
+		} else {
+			return; // no intersections between p.B and newPos
+		}
+	}
 }
 
 void writeParticle(in Particle p) {
@@ -159,12 +244,12 @@ void writeParticle(in Particle p) {
 
 	partVelOut = vec4(p.velocity.x, p.velocity.y, p.rotation, p.rotationAdd);
 
-	vec2 perpendicular = vec2(p.velocity.y, - p.velocity.x);
-	float l = length(perpendicular);
+	vec2 nextPerpendicular = vec2(p.velocity.y, - p.velocity.x);
+	float l = length(nextPerpendicular);
 	if(l == 0.0) {
-		perpendicular = vec2(0,0);
+		nextPerpendicular = vec2(0,0);
 	} else {
-		perpendicular = perpendicular / l; 
+		nextPerpendicular = nextPerpendicular / l; 
 	}
-	partCalOut.xy = perpendicular;
+	partCalOut = vec4(nextPerpendicular, p.perpendicular);
 }
