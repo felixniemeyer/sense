@@ -19,9 +19,9 @@ function main() {
   var frameSize = 1024
   var particleCountSqrt = 32
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
-  var halfWidth = 1.8 * 2 / frameSize
-  var particleSpeed = 0.7
-  var rayDecay = 0.9
+  var halfWidth = 1.5 * 2 / frameSize
+  var particleSpeed = 1
+  var rayDecay = 0.930713
   var rayDecayCircleFactor = 0.1
 
   //map related config
@@ -424,7 +424,7 @@ function main() {
 
     drawTexture(frameTexture[toBuf], 0, 0, 2)
     
-    drawTexture(mapTexture, -0.5, 0.5, 0.7)
+    // drawTexture(mapTexture, -0.5, 0.5, 0.7)
 
     var width = 2 * particleCountSqrt / frameSize
     for(var i = 0; i < particlePhysicsTextureCount; i++) {

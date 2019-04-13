@@ -83,7 +83,7 @@ void main()
 	//rotation
 	p.rotation += p.rotationAdd * dTime;
 
-	p.A = p.B - shift;
+	p.A = p.B; 
 	p.B = newPos;
 	
 	writeParticle(p);
@@ -110,10 +110,10 @@ Particle getParticle() {
 }
 
 bool particleOutOfView(in Particle p) {
-	if(	p.B.x < playerPosition.x - 1.0 ||
-		p.B.x > playerPosition.x + 1.0 ||
-		p.B.y < playerPosition.y - 1.0 ||
-		p.B.y > playerPosition.y + 1.0 ) return true;
+	if(	p.B.x < playerPosition.x - 1.5 ||
+		p.B.x > playerPosition.x + 1.5 ||
+		p.B.y < playerPosition.y - 1.5 ||
+		p.B.y > playerPosition.y + 1.5 ) return true;
 	return false;
 }
 
@@ -174,63 +174,56 @@ float random(in Particle p, in float v1, in float v2, in float v3, in float from
 
 bool mayBounce(
 	in int axis, 
-	in vec2 tileIndex, 
+	inout vec2 nextLineIndex, 
 	in vec2 v, 
 	inout Particle p, 
 	inout vec2 newPos, 
 	inout vec2 prevPos,
 	in vec2 unitsToLine ) 
 {
-	vec2 wallTileIndex = tileIndex; 
+	vec2 wallTileIndex = nextLineIndex - (sign(v) + vec2(1,1)) * 0.5; 
 	wallTileIndex[axis] += sign(v[axis]); 
 	vec4 tileValue = texture(map, wallTileIndex / 256.0 + 0.5); // texture not readable, obwohl es ok ausguckt
 
 	float units;
 
-	if( tileValue.a == 1.0) { // TRY: == 1.0
+	if( tileValue.a >= 0.1) { // TRY: == 1.0
 		p.velocity[axis] = - p.velocity[axis];
-		units = (v[axis] * unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0) / v[axis]; // das erste produkt sollte positiv sein, damit bleibt 
-		// p.color = tileValue.rgba;
-		newPos = newPos + v[axis] * v;
+		units = (v[axis] * unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0) / v[axis]; 
+		p.color *= tileValue.rgba;
+		newPos = prevPos + unitsToLine[axis] * v;
 		return true;
 	} else {
-		units = (v[axis] * unitsToLine[axis] + sign(v[axis]) * tileSize / 100.0) / v[axis]; // das erste produkt sollte positiv sein, damit bleibt 
-		prevPos = prevPos + v[axis] * v;
+		nextLineIndex[axis] += ( sign( v[axis] ) );
 		return false; 
 	}
 }
 
 void mapCollisionCheck(inout Particle p, inout vec2 newPos) {
 	vec2 prevPos = p.B; 
-	vec2 v;
-	vec2 nextLineIndex;
+	vec2 v = newPos - prevPos;
+	vec2 nextLineIndex = floor(prevPos / tileSize) + (sign(v) + vec2(1,1)) * 0.5;
 	vec2 unitsToLine;
-	vec2 tileIndex; 
-	float tile; 
 	for(int i = 0;  i < maxIntersectionChecks; i++) {
-		v = newPos - prevPos;
-		tileIndex = floor(prevPos / tileSize);
-		nextLineIndex = tileIndex + (sign(v) + vec2(1,1)) * 0.5;
 		unitsToLine = (nextLineIndex * tileSize - prevPos) / v; 
-
 		if(unitsToLine.x >= 0.0 && unitsToLine.x <= 1.0) {
 			if(unitsToLine.y >= 0.0 && unitsToLine.y <= 1.0) {
 				if(unitsToLine.x < unitsToLine.y) {
-					if(mayBounce(0, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
+					if(mayBounce(0, nextLineIndex, v, p, newPos, prevPos, unitsToLine)) {
 						return;
 					}
 				} else {
-					if(mayBounce(1, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
+					if(mayBounce(1, nextLineIndex, v, p, newPos, prevPos, unitsToLine)) {
 						return;
 					}
 				}
 			} else {
-				if(mayBounce(0, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
+				if(mayBounce(0, nextLineIndex, v, p, newPos, prevPos, unitsToLine)) {
 					return;
 				}
 			}
 		} else if(unitsToLine.y >= 0.0 && unitsToLine.y <= 1.0) {
-			if(mayBounce(1, tileIndex, v, p, newPos, prevPos, unitsToLine)) {
+			if(mayBounce(1, nextLineIndex, v, p, newPos, prevPos, unitsToLine)) {
 				return;
 			}
 		} else {
