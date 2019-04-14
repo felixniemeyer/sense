@@ -1,5 +1,8 @@
 import shaderTools from './webgl2tools.js'
+
 import GamePlay from './game-play.js'
+import HUD from './hud.js'
+
 import vsParticlePhysics from './shaders/particle-physics.vert'
 import fsParticlePhysics from './shaders/particle-physics.frag'
 import vsParticleDraw from './shaders/particle-draw.vert'
@@ -9,15 +12,12 @@ import fsTextureDraw from './shaders/texture-draw.frag'
 import vsPostProcess from './shaders/post-process.vert'
 import fsPostProcess from './shaders/post-process.frag'
 
-import map_skull from './maps/skull.png'
+import map from './maps/128_skull.png'
 
 function main() {
-
-  console.log(map_skull) 
-
   //Params to play with
   var frameSize = 1024
-  var particleCountSqrt = 32
+  var particleCountSqrt = 16
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
   var halfWidth = 1.5 * 2 / frameSize
   var particleSpeed = 1
@@ -25,6 +25,7 @@ function main() {
   var rayDecayCircleFactor = 0.1
 
   //map related config
+  var mapSize = 128 //is defined on image load
   var tileSize = 0.1 // update maxIntersectionChecks in ./shaders/particle-physics.frag accordingly
 
   var particlePhysicsTextureCount = 4
@@ -64,16 +65,21 @@ function main() {
   var mapData
   var image = new Image()
   image.onload = () => {
+    if(image.width !== image.height || image.width !== mapSize) {
+      console.error('Map height needs to equal width') 
+      return 
+    }
+    mapSize = image.width
     gl.bindTexture(gl.TEXTURE_2D, mapTexture) 
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true) 
     gl.texImage2D(
       gl.TEXTURE_2D,
       0, 
-      gl.RGBA8, 
-      256, 
-      256, 
+      gl.RGBA8UI, 
+      mapSize, 
+      mapSize, 
       0,
-      gl.RGBA,
+      gl.RGBA_INTEGER,
       gl.UNSIGNED_BYTE,
       image
     )
@@ -87,7 +93,7 @@ function main() {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, mapTexture, 0)
 
     var mapData = new Uint8Array(image.width * image.height * 4)
-    gl.readPixels(0, 0, image.width, image.height, gl.RGBA, gl.UNSIGNED_BYTE, mapData)
+    gl.readPixels(0, 0, image.width, image.height, gl.RGBA_INTEGER, gl.UNSIGNED_BYTE, mapData)
 
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0)
 
@@ -95,7 +101,7 @@ function main() {
 
     run()
   }
-  image.src = map_skull
+  image.src = map 
 
   var quadVao = createQuadVao(gl) 
 
@@ -114,7 +120,8 @@ function main() {
     'playerPosition', 
     'particleSpeedPerSecond',
     'mode',
-    'tileSize'
+    'tileSize',
+    'mapSize'
   ])
   gl.uniform1i(particlePhysicsUniformLocations.particlePositions, 0)
   gl.uniform1i(particlePhysicsUniformLocations.particleColors, 1)
@@ -128,6 +135,8 @@ function main() {
   gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, particleSpeed)
   gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
   gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
+  gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
+  console.log(mapSize)
 
   var dataBuffer
   var particlePhysicsTextures = []
@@ -474,4 +483,7 @@ function getUniformLocations(gl, program, uniformNames) {
   return uniformMap
 }
 
-main()
+window.addEventListener('load', () => {
+  var hud = new HUD()
+  main()
+})

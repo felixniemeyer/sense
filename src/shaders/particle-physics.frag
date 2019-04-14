@@ -3,6 +3,7 @@
 precision highp int; 
 precision highp float; 
 precision highp sampler2D;
+precision highp usampler2D; 
 
 const float PI = 3.1415926535897932384626433832795;
 
@@ -12,7 +13,7 @@ uniform sampler2D particlePositions;
 uniform sampler2D particleColors;
 uniform sampler2D particleVelocities;
 uniform sampler2D particlePerpendiculars; 
-uniform sampler2D map; 
+uniform usampler2D map; 
 uniform vec2 shift; 
 uniform float dTime; 
 uniform bool preventRespawn;
@@ -20,6 +21,7 @@ uniform vec2 playerPosition;
 uniform float particleSpeedPerSecond;
 uniform int mode;
 uniform float tileSize; 
+uniform int mapSize;
 
 const int maxIntersectionChecks = 2 * 10; /* explanation 
 	2: x and y intersections
@@ -69,8 +71,9 @@ void main()
 	//position
 	vec2 newPos = p.B + p.velocity * dTime;
 
-	//TODO: check collision, mirror velocity, set position, decrement rgba
-	mapCollisionCheck(p, newPos);
+	if(mode == 1) { // game
+		mapCollisionCheck(p, newPos);
+	}
 
 	//velocity
 	float r = p.rotation * dTime; 
@@ -118,11 +121,11 @@ bool particleOutOfView(in Particle p) {
 }
 
 bool particleTooDark(in Particle p) {
-	return p.color.a < 0.1;
+	return (p.color.r + p.color.g + p.color.b) * p.color.a < 0.2;
 }
 
 bool particleTurnsTooFast(in Particle p) {
-	return abs(p.rotation) > 1.5* PI;
+	return abs(p.rotation) > 5.0 * PI * particleSpeedPerSecond;
 }
 
 void disableParticle(inout Particle p) {
@@ -135,15 +138,15 @@ void respawnParticle(inout Particle p) {
 	if(mode == 0) { //menu
 		float rotationF = random(p, 1.23, 98.078, 29.102, -1.0, 1.0);
 		rotationF = pow(rotationF, 3.0); //less quick turners
-		p.rotation = rotationF * 2.0 * PI / 10.0; //1 rotation per 10 seconds
+		p.rotation = rotationF * PI * particleSpeedPerSecond; //1 rotation per 10 seconds
 	} else if(mode == 1) { //game
 		p.rotation = 0.0;
 	}
-	p.rotationAdd = - 0.5 * p.rotation;
+	p.rotationAdd = - p.rotation;
 
 	if(mode == 0) {
-		float red = random(p, 1.123, 2.89, 89.21, 0.4, 1.0); 
-		p.color = vec4(red,0.5,0.9,1);
+		float red = random(p, 1.123, 2.89, 89.21, 0.3, 1.0); 
+		p.color = vec4(red,0.5,1.0,1);
 	} else {
 		p.color = vec4(1,1,1,1);
 	}
@@ -151,7 +154,7 @@ void respawnParticle(inout Particle p) {
 	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);
 	float speed = particleSpeedPerSecond;
 	if(mode == 0) {
-		speed *= random(p, 2.19, 0.313, 81.23, 0.3, 1.0);
+		speed *= random(p, 2.19, 0.313, 81.23, 0.1, 1.0);
 	}
 	p.velocity = vec2(cos(direction), sin(direction)) * speed;  
 
@@ -183,14 +186,14 @@ bool mayBounce(
 {
 	vec2 wallTileIndex = nextLineIndex - (sign(v) + vec2(1,1)) * 0.5; 
 	wallTileIndex[axis] += sign(v[axis]); 
-	vec4 tileValue = texture(map, wallTileIndex / 256.0 + 0.5); // texture not readable, obwohl es ok ausguckt
+	uvec4 tileValue = texture(map, wallTileIndex / float(mapSize) + 0.5); // texture not readable, obwohl es ok ausguckt
 
 	float units;
 
-	if( tileValue.a >= 0.1) { // TRY: == 1.0
+	if( tileValue.a == uint(255)) { // TRY: == 1.0
 		p.velocity[axis] = - p.velocity[axis];
 		units = (v[axis] * unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0) / v[axis]; 
-		p.color *= tileValue.rgba;
+		p.color *= vec4(tileValue.rgba) / 255.0;
 		newPos = prevPos + unitsToLine[axis] * v;
 		return true;
 	} else {

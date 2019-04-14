@@ -1,0 +1,11 @@
+# alpha = 255
+Walls. 
+RGB is multiplied component wise with the ray color on collision. 
+
+# alpha = 128
+Game Objects: 
+
+
+# alpha = ?
+(ray emittance color)
+

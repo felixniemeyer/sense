@@ -3,7 +3,7 @@ import Vec2 from './vec2.js'
 export default class GamePlay {
   constructor(gameParams) {
     this.params = gameParams || {
-      playerAcceleration: 2,
+      playerAcceleration: 1,
       playerFriction: 0.02
     }
     
