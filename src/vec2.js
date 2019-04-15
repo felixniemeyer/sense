@@ -1,10 +1,10 @@
 
 export default class Vec2 {
   constructor(x, y) {
-    this.assign(x,y) 
+    this.set(x,y) 
   }
 
-  assign(x,y) {
+  set(x,y) {
     this.x = x
     this.y = y
   }
@@ -57,6 +57,15 @@ export default class Vec2 {
       Math.pow(this.x, 2) + 
       Math.pow(this.y, 2)
     ) 
+  }
+
+  normed() {
+    console.log('hey', this) 
+    return this.scale(1 / this.length()) 
+  }
+
+  cosWith(vec) {
+    return (this.x * vec.x + this.y * vec.y) / (this.length() * vec.length())
   }
 
   toArray() {

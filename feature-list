@@ -1,0 +1,8 @@
+#Particle limit
+Eine Uniform, die beschreibt, wie viele Partikel angezeigt werden. Die anderen werden inaktiviert. Und vom Vertexshader als degeneriert rausgerechnet. 
+
+#Items
+
+#Anzeigen im HUD
+- Stamina
+- Rage

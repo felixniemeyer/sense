@@ -121,7 +121,7 @@ bool particleOutOfView(in Particle p) {
 }
 
 bool particleTooDark(in Particle p) {
-	return (p.color.r + p.color.g + p.color.b) * p.color.a < 0.2;
+	return (p.color.r + p.color.g + p.color.b) * p.color.a < 0.3;
 }
 
 bool particleTurnsTooFast(in Particle p) {
@@ -148,7 +148,7 @@ void respawnParticle(inout Particle p) {
 		float red = random(p, 1.123, 2.89, 89.21, 0.3, 1.0); 
 		p.color = vec4(red,0.5,1.0,1);
 	} else {
-		p.color = vec4(1,1,1,1);
+		p.color = vec4(1,1,1,0.5);
 	}
 
 	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);

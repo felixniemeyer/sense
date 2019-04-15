@@ -4,14 +4,27 @@ export default class GamePlay {
   constructor(gameParams) {
     this.params = gameParams || {
       playerAcceleration: 1,
-      playerFriction: 0.02
+      playerFriction: 0.02,
+      playerBoost: 1.5,
+      boostRegenerate: 10.2, // per second
+      boostStaminaCosts: 0.3,
+      berserkEnableRageCosts: 0.1,
+      berserkRageDrain: 0.05, // per second
     }
     
     this.emitting = true;       
-    this.playerPosition = new Vec2(0,0)
-    this.previousPlayerPosition = new Vec2(0,0)
-    this.playerVelocity = new Vec2(0,0)
-    this.cameraPosition = new Vec2(0,0)
+    this.player = {
+      position: new Vec2(0,0),
+      velocity: new Vec2(0,0),
+      accelerationVector: new Vec2(0,0),
+      stamina: 1, 
+      rage: 0,
+      berserkModeOn: false, 
+      rays: 1 / 16 // fraction of the `of rays the player emits
+      /* wenn er jemanden killt, kommen direkt alle strahlen wieder
+        wenn er es wieder ausmacht, kommen die Strahlen langsam wieder */
+    }
+    
     this.enableInput()
   }
 
@@ -21,7 +34,14 @@ export default class GamePlay {
       this.keydowns[ev.code] = true
       switch(ev.code) {
         case 'Space':
-          this.emitting = !this.emitting
+          if(this.berserkModeOn) {
+            this.disableBerserk()
+          } else {
+            this.goBerserk()
+          }
+          break
+        case 'ShiftLeft':
+          this.boost()
           break
         default:
       }
@@ -35,29 +55,56 @@ export default class GamePlay {
 
   step(dTime) {
     this.considerInput(dTime)
-    this.previousPlayerPosition = this.playerPosition.copy()
-    this.playerPosition.addInPlace(this.playerVelocity.scale(dTime))
-    this.playerVelocity.scaleInPlace(Math.pow(this.params.playerFriction, dTime))
+
+    this.player.stamina = Math.min(1, this.player.stamina + dTime * this.params.boostRegenerate)
+    this.player.position.addInPlace(this.player.velocity.scale(dTime))
+    this.player.velocity.scaleInPlace(Math.pow(this.params.playerFriction, dTime))
+  }
+
+  boost() {
+    if (this.player.velocity.length() !== 0) {
+      var boost = Math.min(this.params.boostStaminaCosts, this.player.stamina) 
+      this.player.stamina -= boost
+      var vec
+      if (this.player.accelerationVector.length() !== 0 && 
+          this.player.velocity.cosWith(this.player.accelerationVector) < 0.7) { 
+        vec = this.player.accelerationVector
+      } else {
+        vec = this.player.velocity.normed()
+      }
+      console.log(vec) 
+      var boostFactor = boost / this.params.boostStaminaCosts
+      vec.scaleInPlace(this.params.playerBoost * boostFactor)
+      this.player.velocity.addInPlace(vec)
+    } 
+  }
+
+  goBerserk() {
+    this.berserkModeOn = true
+  }
+  
+  disableBerserk() {
+    this.berserkModeOn = false
   }
 
   considerInput(dTime) {
-    var accelerationVector = new Vec2(0,0)
+    this.player.accelerationVector.set(0,0)
     if(this.keydowns['ArrowUp']){
-      accelerationVector.y += 1   
+      this.player.accelerationVector.y += 1   
     }
     if(this.keydowns['ArrowRight']){
-      accelerationVector.x += 1   
+      this.player.accelerationVector.x += 1   
     }
     if(this.keydowns['ArrowDown']){
-      accelerationVector.y += -1   
+      this.player.accelerationVector.y += -1   
     }
     if(this.keydowns['ArrowLeft']){
-      accelerationVector.x += -1   
+      this.player.accelerationVector.x += -1   
     }
-    var len = accelerationVector.length()
+    var len = this.player.accelerationVector.length()
     if(len > 0) {
       var f = 1 / len * dTime * this.params.playerAcceleration;
-      this.playerVelocity.addInPlace(accelerationVector.scale(f))
+      this.player.velocity.addInPlace(this.player.accelerationVector.scale(f))
     }
 
     if(this.keydowns['ShiftLeft']){ //spurt
@@ -71,14 +118,10 @@ export default class GamePlay {
   }
 
   getPlayerPosition() {
-    return this.playerPosition.toArray()
+    return this.player.position.toArray()
   }
 
-  getCameraPosition() {
-    return this.cameraPosition.toArray()
-  }
-
-  getEmitting() {
-    return this.emitting
+  isInBerserkMode() {
+    return this.berserkModeOn
   }
 }

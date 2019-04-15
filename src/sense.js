@@ -17,10 +17,10 @@ import map from './maps/128_skull.png'
 function main() {
   //Params to play with
   var frameSize = 1024
-  var particleCountSqrt = 16
+  var particleCountSqrt = 8
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
   var halfWidth = 1.5 * 2 / frameSize
-  var particleSpeed = 1
+  var particleSpeed = 2
   var rayDecay = 0.930713
   var rayDecayCircleFactor = 0.1
 
@@ -129,8 +129,8 @@ function main() {
   gl.uniform1i(particlePhysicsUniformLocations.particlePerpendiculars, 3)
   gl.uniform1i(particlePhysicsUniformLocations.map, 4)
   gl.uniform2fv(particlePhysicsUniformLocations.shift, [0, 0]) // shift vielleicht ganzzahlig machen... textur dann auch vllt. von linear auf nearest.. Und dann halt noch den shift beim malen mitberücksichtigen... bei den perpendiculars... soo viele particle sind's jetzt auch nicht...
-  var particleEmitting = 0
-  gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, particleEmitting)
+  var preventRespawn = 0
+  gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, preventRespawn)
   gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
   gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, particleSpeed)
   gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
@@ -211,10 +211,10 @@ function main() {
     gl.uniform1f(particlePhysicsUniformLocations.dTime, dTime)
     gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, gamePlay.getPlayerPosition()) 
     gl.uniform2fv(particlePhysicsUniformLocations.shift, shift) 
-    var newEmitting = gamePlay.getEmitting() ? 1 : 0
-    if(newEmitting !== particleEmitting) {
-      particleEmitting = newEmitting
-      gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, !particleEmitting) 
+    var newPreventRespawn = gamePlay.isInBerserkMode() ? 1 : 0
+    if(newPreventRespawn !== preventRespawn) {
+      preventRespawn= newPreventRespawn
+      gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, preventRespawn) 
     }
   
     gl.bindVertexArray(quadVao); 
@@ -404,6 +404,7 @@ function main() {
   var stop = false
 
   document.addEventListener('keydown', (ev) => {
+    console.log(ev.code) 
     if(ev.code === 'Escape'){
       stop = !stop
       if(stop === false) requestAnimationFrame(loop) 
@@ -447,7 +448,7 @@ function main() {
     
     setTimeout(() => { 
       if(!stop) requestAnimationFrame(loop) 
-    }, 0)
+    }, 40)
   }
   
   var run = () => {
