@@ -17,10 +17,10 @@ import map from './maps/128_skull.png'
 function main() {
   //Params to play with
   var frameSize = 1024
-  var particleCountSqrt = 8
+  var particleCountSqrt = 32 // 32 is fine
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
   var halfWidth = 1.5 * 2 / frameSize
-  var particleSpeed = 2
+  var particleSpeed = 1 // 1 is good
   var rayDecay = 0.930713
   var rayDecayCircleFactor = 0.1
 
@@ -133,7 +133,7 @@ function main() {
   gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, preventRespawn)
   gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
   gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, particleSpeed)
-  gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
+  gl.uniform1i(particlePhysicsUniformLocations.mode, 0)
   gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
   gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
   console.log(mapSize)
@@ -448,7 +448,7 @@ function main() {
     
     setTimeout(() => { 
       if(!stop) requestAnimationFrame(loop) 
-    }, 40)
+    }, 5)
   }
   
   var run = () => {
