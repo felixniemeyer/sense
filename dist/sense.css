@@ -3,6 +3,7 @@ body {
 	overflow: hidden;
 	height: 100%; 
 	width: 100%;
+	font-family: sans-serif;
 }
 
 h1 {
@@ -28,9 +29,47 @@ h1 {
 }
 
 #hud {
-	position: absolute;
+	width: 100%; 
+	height: 100%
+}
+
+#hud-lids {
+	z-index: 3;
+	position: fixed;
 	width: 100%; 
 	height: 100%; 
 	left: 0px; 
 	top: 0px; 
+}
+
+#wheel {
+	z-index: 2;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	height: 0px;
+	width: 0px;
+}
+
+#wheel .option {
+	z-index: 2;
+	position: absolute;
+	line-height: 3vh; 
+	width: 400vh;
+	text-align: center; 
+	font-size: 2.5vh;
+	color: #ffffff;
+	background-color: #aa0000;
+	top: 0; 
+	left: 0; 
+	font-weight: 900;
+	white-space: nowrap; 
+	text-transform: uppercase; 
+	border-radius: 5vh;
+}
+
+.option.selected {
+	z-index: 1 !important;
+	color: #aa0000 !important;
+	background-color: #ffffff !important;
 }

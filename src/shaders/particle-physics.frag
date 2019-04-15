@@ -154,7 +154,7 @@ void respawnParticle(inout Particle p) {
 	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);
 	float speed = particleSpeedPerSecond;
 	if(mode == 0) {
-		speed *= random(p, 2.19, 0.313, 81.23, 0.1, 1.0);
+		speed *= random(p, 2.19, 0.313, 81.23, 0.15, 1.0);
 	}
 	p.velocity = vec2(cos(direction), sin(direction)) * speed;  
 
