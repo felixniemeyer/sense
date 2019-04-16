@@ -124,4 +124,8 @@ export default class GamePlay {
   isInBerserkMode() {
     return this.berserkModeOn
   }
+  
+  getLuminance() {
+    return this.player.rays
+  }
 }

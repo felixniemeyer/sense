@@ -14,7 +14,6 @@ uniform sampler2D particleColors;
 uniform sampler2D particleVelocities;
 uniform sampler2D particlePerpendiculars; 
 uniform usampler2D map; 
-uniform vec2 shift; 
 uniform float dTime; 
 uniform bool preventRespawn;
 uniform vec2 playerPosition;
@@ -22,11 +21,15 @@ uniform float particleSpeedPerSecond;
 uniform int mode;
 uniform float tileSize; 
 uniform int mapSize;
+uniform float activeParticlesCountNormed;
+uniform float particleCountSqrt; 
 
 const int maxIntersectionChecks = 2 * 10; /* explanation 
 	2: x and y intersections
 	10: 1 / tileSize, needs to be updated manually!
 */
+
+const float maxRadius = 0.8; // 1.5 is good
 
 layout(location = 0) out vec4 partPosOut;
 layout(location = 1) out vec4 partColOut; 
@@ -44,7 +47,7 @@ struct Particle {
 };
 
 Particle getParticle();
-bool particleOutOfView(in Particle p); 
+bool particleTooFar(in Particle p); 
 bool particleTooDark(in Particle p); 
 bool particleTurnsTooFast(in Particle p); 
 float random(in Particle p, in float v1, in float v2, in float v3, in float from, in float to);
@@ -56,9 +59,18 @@ void writeParticle(in Particle p);
 
 void main()
 {
-	Particle p = getParticle(); 
+	Particle p; 
 
-	if(particleOutOfView(p) || particleTooDark(p) || particleTurnsTooFast(p)) {
+	float f = 0.5 / particleCountSqrt; 
+	if( ts.y - f + (ts.x - f) / particleCountSqrt > activeParticlesCountNormed) {
+		disableParticle(p);
+		writeParticle(p);
+		return; 
+	} else {
+		p = getParticle();
+	}
+		
+	if(particleTooFar(p) || particleTooDark(p) || particleTurnsTooFast(p)) {
 		if(preventRespawn) {
 			disableParticle(p);
 			writeParticle(p);
@@ -112,11 +124,10 @@ Particle getParticle() {
 	return p;
 }
 
-bool particleOutOfView(in Particle p) {
-	if(	p.B.x < playerPosition.x - 1.5 ||
-		p.B.x > playerPosition.x + 1.5 ||
-		p.B.y < playerPosition.y - 1.5 ||
-		p.B.y > playerPosition.y + 1.5 ) return true;
+bool particleTooFar(in Particle p) {
+	if( length( p.B - playerPosition ) > maxRadius) {
+		return true;
+	}
 	return false;
 }
 
@@ -129,8 +140,13 @@ bool particleTurnsTooFast(in Particle p) {
 }
 
 void disableParticle(inout Particle p) {
-	p.color = vec4(0,0,0,0);
+	p.A = vec2(0,0);
+	p.B = vec2(0,0);
+	p.rotation = 0.0;
+	p.rotationAdd = 0.0;
 	p.velocity = vec2(0,0);
+	p.color = vec4(0,0,0,0);
+	p.perpendicular = vec2(0,0);
 }
 
 void respawnParticle(inout Particle p) {

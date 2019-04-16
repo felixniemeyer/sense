@@ -17,7 +17,7 @@ import map from './maps/128_skull.png'
 function main() {
   //Params to play with
   var frameSize = 1024
-  var particleCountSqrt = 8 // 32 is fine
+  var particleCountSqrt = 32 // 32 is fine
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
   var halfWidth = 1.5 * 2 / frameSize
   var particleSpeed = 1 // 1 is good
@@ -114,14 +114,15 @@ function main() {
     'particleVelocities',
     'particlePerpendiculars',
     'map',
-    'shift',
     'dTime', 
     'preventRespawn', 
     'playerPosition', 
     'particleSpeedPerSecond',
     'mode',
     'tileSize',
-    'mapSize'
+    'mapSize',
+    'activeParticlesCountNormed', 
+    'particleCountSqrt'
   ])
   gl.uniform1i(particlePhysicsUniformLocations.particlePositions, 0)
   gl.uniform1i(particlePhysicsUniformLocations.particleColors, 1)
@@ -136,6 +137,7 @@ function main() {
   gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
   gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
   gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
+  gl.uniform1f(particlePhysicsUniformLocations.particleCountSqrt, particleCountSqrt) 
   console.log(mapSize)
 
   var dataBuffer
@@ -184,7 +186,7 @@ function main() {
     }
   }
   
-  var updateParticlePhysics = (dTime, toBuf, shift) => { 
+  var updateParticlePhysics = (dTime, toBuf) => { 
     var fromBuf = 1 - toBuf
 
     gl.activeTexture(gl.TEXTURE0)
@@ -197,7 +199,7 @@ function main() {
     gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[fromBuf][3])
     gl.activeTexture(gl.TEXTURE4)
     gl.bindTexture(gl.TEXTURE_2D, mapTexture)
-
+  
     gl.bindFramebuffer(gl.FRAMEBUFFER, particlePhysicsFrameBuffer[toBuf])
     gl.drawBuffers([
       gl.COLOR_ATTACHMENT0,
@@ -210,7 +212,7 @@ function main() {
     gl.useProgram(particlePhysicsProgram) 
     gl.uniform1f(particlePhysicsUniformLocations.dTime, dTime)
     gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, gamePlay.getPlayerPosition()) 
-    gl.uniform2fv(particlePhysicsUniformLocations.shift, shift) 
+    gl.uniform1f(particlePhysicsUniformLocations.activeParticlesCountNormed, gamePlay.getLuminance())
     var newPreventRespawn = gamePlay.isInBerserkMode() ? 1 : 0
     if(newPreventRespawn !== preventRespawn) {
       preventRespawn= newPreventRespawn
@@ -235,7 +237,8 @@ function main() {
     'playerPosition',
     'decay',
     'dTime',
-    'decayCircleFactor'
+    'decayCircleFactor',
+    'activeParticlesCount'
   ])
   // const
   gl.uniform1i(particleDrawUniformLocations.particlePositions, 0)
@@ -318,6 +321,10 @@ function main() {
     gl.useProgram(particleDrawProgram) 
     gl.uniform2fv(particleDrawUniformLocations.playerPosition, gamePlay.getPlayerPosition()) 
     gl.uniform1f(particleDrawUniformLocations.dTime, dTime)
+    gl.uniform1ui(
+      particleDrawUniformLocations.activeParticlesCount, 
+      Math.floor(gamePlay.getLuminance() * particleCount) 
+    )
 
     gl.bindVertexArray(particleSegmentsVao) 
     
@@ -428,13 +435,12 @@ function main() {
     lastPlayerPos[0] = playerPos[0]
     lastPlayerPos[1] = playerPos[1]
 
-    updateParticlePhysics(dTime, toBuf, shift)
+
+    updateParticlePhysics(dTime, toBuf)
     postProcess(dTime, toBuf, shift) 
     drawParticles(dTime, toBuf)
 
     drawTexture(frameTexture[toBuf], 0, 0, 2)
-    
-    // drawTexture(mapTexture, -0.5, 0.5, 0.7)
 
     var width = 2 * particleCountSqrt / frameSize
     for(var i = 0; i < particlePhysicsTextureCount; i++) {

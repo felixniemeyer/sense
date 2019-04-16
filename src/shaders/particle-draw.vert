@@ -16,7 +16,7 @@ uniform float decay;
 uniform float decayCircleFactor; 
 uniform float dTime; 
 uniform vec2 shift; 
-	
+uniform uint activeParticlesCount; 
 
 out vec4 color; 
 out float leftRight;
@@ -37,6 +37,11 @@ void main() {
 	uint particleId = vert.x;
 	uint edge = vert.y;
 
+	if(particleId >= activeParticlesCount) {
+		gl_Position = vec4(0,0,0,0);
+		return;
+	}
+	
 	uint y = particleId / particleCountSqrt;
 	ts.x = float(particleId - particleCountSqrt * y) / float(particleCountSqrt);
 	ts.y = float(y) / float(particleCountSqrt);
