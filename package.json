@@ -17,5 +17,6 @@
     "webpack-cli": "^3.3.0"
   },
   "dependencies": {
+    "ws": "^6.2.1"
   }
 }

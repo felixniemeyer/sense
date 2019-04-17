@@ -29,7 +29,7 @@ const int maxIntersectionChecks = 2 * 10; /* explanation
 	10: 1 / tileSize, needs to be updated manually!
 */
 
-const float maxRadius = 0.8; // 1.5 is good
+const float maxRadius = 1.5; // 1.5 is good
 
 layout(location = 0) out vec4 partPosOut;
 layout(location = 1) out vec4 partColOut; 
@@ -132,7 +132,7 @@ bool particleTooFar(in Particle p) {
 }
 
 bool particleTooDark(in Particle p) {
-	return (p.color.r + p.color.g + p.color.b) * p.color.a < 0.3;
+	return (p.color.r + p.color.g + p.color.b) * p.color.a < 0.2;
 }
 
 bool particleTurnsTooFast(in Particle p) {
@@ -164,7 +164,7 @@ void respawnParticle(inout Particle p) {
 		float red = random(p, 1.123, 2.89, 89.21, 0.3, 1.0); 
 		p.color = vec4(red,0.5,1.0,1);
 	} else {
-		p.color = vec4(1,1,1,0.5);
+		p.color = vec4(1,1,1,0.3);
 	}
 
 	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);

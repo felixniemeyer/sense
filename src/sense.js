@@ -11,6 +11,8 @@ import vsTextureDraw from './shaders/texture-draw.vert'
 import fsTextureDraw from './shaders/texture-draw.frag'
 import vsPostProcess from './shaders/post-process.vert'
 import fsPostProcess from './shaders/post-process.frag'
+import vsFinalDraw from './shaders/final-draw.vert'
+import fsFinalDraw from './shaders/final-draw.frag'
 
 import map from './maps/128_skull.png'
 
@@ -104,6 +106,8 @@ function main() {
   image.src = map 
 
   var quadVao = createQuadVao(gl) 
+  var circleVao = createCircleVao(gl, 5) 
+  var circleVertexCount = 4 * Math.pow(2, 5) 
 
   console.log('building particlePhysicsProgram program')
 	var particlePhysicsProgram = shaderTools.createProgramFromSources(gl, [vsParticlePhysics, fsParticlePhysics])
@@ -395,6 +399,27 @@ function main() {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
   }
 
+  var finalDrawProgram = shaderTools.createProgramFromSources(gl, [
+    vsFinalDraw, fsFinalDraw
+  ])
+  var finalDrawUniformLocations = getUniformLocations(gl, finalDrawProgram, [
+    'tex'
+  ])
+  gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
+
+  var finalDraw = (dTime, toBuf) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
+    gl.viewport(0,0,frameSize,frameSize) 
+
+    gl.useProgram(finalDrawProgram) 
+    
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, frameTexture[toBuf]) 
+    
+    gl.bindVertexArray(circleVao) 
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, circleVertexCount) 
+  }
+
   //init stuff
   gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
   gl.cullFace(gl.FRONT_AND_BACK)
@@ -440,7 +465,7 @@ function main() {
     postProcess(dTime, toBuf, shift) 
     drawParticles(dTime, toBuf)
 
-    drawTexture(frameTexture[toBuf], 0, 0, 2)
+    finalDraw(dTime, toBuf)
 
     var width = 2 * particleCountSqrt / frameSize
     for(var i = 0; i < particlePhysicsTextureCount; i++) {
@@ -477,6 +502,55 @@ function createQuadVao(gl) {
   gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
   return quadVao
+}
+
+function createCircleVao(gl, circleRes) {
+  circleRes = circleRes || 4
+  var current, next = [
+    -1,-1,
+		1,-1,
+		1, 1, 
+		-1, 1
+  ]
+  var nvi
+  var vi 
+  var a = Math.sqrt(2) / 2
+  var b = 1 - a
+  for(var i = 0; i < circleRes; i++) {
+    current = next.slice()
+    console.log(current) 
+    for(var s = 0; s < current.length; s++) {
+      console.log(Math.floor(s/2)) 
+      vi = 4 * Math.floor(s / 2) + s % 2
+      nvi = (s + 2) % current.length
+      next[vi  ] = current[s] * a + current[nvi] * b
+      next[vi+2] = current[s] * b + current[nvi] * a
+      /*
+      s = 0
+      => 0
+      => 2
+      s = 1
+      => 1
+      => 3
+      
+      s = 2
+      => 4
+      => 6
+      s = 3
+      => 5
+      => 7*/
+    }
+  }
+  console.log(next) 
+  var data = new Float32Array(next) 
+  var circleVao = gl.createVertexArray(circleVao)
+  gl.bindVertexArray(circleVao) 
+  gl.enableVertexAttribArray(0)
+  var circleVertexBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, circleVertexBuffer) 
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW) 
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+  return circleVao
 }
 
 function getUniformLocations(gl, program, uniformNames) {

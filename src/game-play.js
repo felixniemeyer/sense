@@ -1,7 +1,7 @@
 import Vec2 from './vec2.js'
 
 export default class GamePlay {
-  constructor(gameParams) {
+  constructor(gameParams, map) {
     this.params = gameParams || {
       playerAcceleration: 1,
       playerFriction: 0.02,
@@ -9,7 +9,7 @@ export default class GamePlay {
       boostRegenerate: 10.2, // per second
       boostStaminaCosts: 0.3,
       berserkEnableRageCosts: 0.1,
-      berserkRageDrain: 0.05, // per second
+      berserkRageDrain: 0.05, // per second 
     }
     
     this.emitting = true;       

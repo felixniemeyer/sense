@@ -5,7 +5,7 @@ export default class HUD {
     this.menuStack = []
     this.initLids() 
     this.openingDuration = 150
-    this.closeDuration = 50
+    this.closeDuration = 50 //50 is good
     this.removeDuration = 150
     document.addEventListener('keydown', (ev) => {
       if(ev.code === 'Enter') {
@@ -35,10 +35,10 @@ export default class HUD {
     this.overlay.appendChild(this.wheel) 
     document.addEventListener('keydown', (ev) => {
       var len = this.menu.options.length; 
-      if(ev.code === 'ArrowRight') {
+      if(ev.code === 'ArrowRight' || ev.code === 'ArrowUp') {
         this.selectOption( (this.menu.selected + 1) % len, this.wheelPos + 1 ) 
       }
-      if(ev.code === 'ArrowLeft') {
+      if(ev.code === 'ArrowLeft' || ev.code === 'ArrowDown') {
         this.selectOption( (len + this.menu.selected - 1) % len, this.wheelPos - 1 ) 
       }
     })
