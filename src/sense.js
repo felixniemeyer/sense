@@ -19,9 +19,10 @@ import map from '../maps/128_skull.png'
 var gamePlay; 
 
 function main() {
+  // local settings
+  var frameSize = 1024
 
   //Params to play with
-  var frameSize = 1024
   var particleCountSqrt = 32 // 32 is fine
   var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
   var halfWidth = 1.5 * 2 / frameSize
@@ -114,7 +115,6 @@ function main() {
 
   console.log('building particlePhysicsProgram program')
 	var particlePhysicsProgram = shaderTools.createProgramFromSources(gl, [vsParticlePhysics, fsParticlePhysics])
-  gl.useProgram(particlePhysicsProgram)
   var particlePhysicsUniformLocations = getUniformLocations(gl, particlePhysicsProgram, [
     'particlePositions', 
     'particleColors', 
@@ -122,7 +122,6 @@ function main() {
     'particlePerpendiculars',
     'map',
     'dTime', 
-    'preventRespawn', 
     'playerPosition', 
     'particleSpeedPerSecond',
     'mode',
@@ -131,20 +130,22 @@ function main() {
     'activeParticlesCountNormed', 
     'particleCountSqrt'
   ])
-  gl.uniform1i(particlePhysicsUniformLocations.particlePositions, 0)
-  gl.uniform1i(particlePhysicsUniformLocations.particleColors, 1)
-  gl.uniform1i(particlePhysicsUniformLocations.particleVelocities, 2)
-  gl.uniform1i(particlePhysicsUniformLocations.particlePerpendiculars, 3)
-  gl.uniform1i(particlePhysicsUniformLocations.map, 4)
-  gl.uniform2fv(particlePhysicsUniformLocations.shift, [0, 0]) // shift vielleicht ganzzahlig machen... textur dann auch vllt. von linear auf nearest.. Und dann halt noch den shift beim malen mitberücksichtigen... bei den perpendiculars... soo viele particle sind's jetzt auch nicht...
-  var preventRespawn = 0
-  gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, preventRespawn)
-  gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
-  gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, particleSpeed)
-  gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
-  gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
-  gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
-  gl.uniform1f(particlePhysicsUniformLocations.particleCountSqrt, particleCountSqrt) 
+  var updateParticlePhysicsUniforms = () => {
+    gl.useProgram(particlePhysicsProgram)
+    gl.uniform1i(particlePhysicsUniformLocations.particlePositions, 0)
+    gl.uniform1i(particlePhysicsUniformLocations.particleColors, 1)
+    gl.uniform1i(particlePhysicsUniformLocations.particleVelocities, 2)
+    gl.uniform1i(particlePhysicsUniformLocations.particlePerpendiculars, 3)
+    gl.uniform1i(particlePhysicsUniformLocations.map, 4)
+    gl.uniform2fv(particlePhysicsUniformLocations.shift, [0, 0]) 
+    gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
+    gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, particleSpeed)
+    gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
+    gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
+    gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
+    gl.uniform1f(particlePhysicsUniformLocations.particleCountSqrt, particleCountSqrt) 
+  }
+  updateParticlePhysicsUniforms()
 
   var dataBuffer
   var particlePhysicsTextures = []
@@ -192,7 +193,7 @@ function main() {
     }
   }
   
-  var updateParticlePhysics = (dTime, toBuf) => { 
+  var updateParticlePhysics = () => { 
     var fromBuf = 1 - toBuf
 
     gl.activeTexture(gl.TEXTURE0)
@@ -217,13 +218,8 @@ function main() {
 
     gl.useProgram(particlePhysicsProgram) 
     gl.uniform1f(particlePhysicsUniformLocations.dTime, dTime)
-    gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, gamePlay.getPlayerPosition()) 
-    gl.uniform1f(particlePhysicsUniformLocations.activeParticlesCountNormed, gamePlay.getLuminance())
-    var newPreventRespawn = gamePlay.isInBerserkMode() ? 1 : 0
-    if(newPreventRespawn !== preventRespawn) {
-      preventRespawn= newPreventRespawn
-      gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, preventRespawn) 
-    }
+    gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, displayCenter) 
+    gl.uniform1f(particlePhysicsUniformLocations.activeParticlesCountNormed, luminance)
   
     gl.bindVertexArray(quadVao); 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -233,7 +229,6 @@ function main() {
 	var particleDrawProgram = shaderTools.createProgramFromSources(
     gl, [vsParticleDraw, fsParticleDraw]
   )
-  gl.useProgram(particleDrawProgram) 
   var particleDrawUniformLocations = getUniformLocations(gl, particleDrawProgram, [
     'particlePositions', 
     'particleColors', 
@@ -246,18 +241,22 @@ function main() {
     'decayCircleFactor',
     'activeParticlesCount'
   ])
-  // const
-  gl.uniform1i(particleDrawUniformLocations.particlePositions, 0)
-  gl.uniform1i(particleDrawUniformLocations.particleColors, 1)
-  gl.uniform1i(particleDrawUniformLocations.particlePerpendiculars, 2)
-  gl.uniform1ui(particleDrawUniformLocations.particleCountSqrt, particleCountSqrt) 
-  gl.uniform1f(particleDrawUniformLocations.halfWidth, halfWidth )
-  gl.uniform1f(particleDrawUniformLocations.decay, rayDecay)
-  gl.uniform1f(particleDrawUniformLocations.decayCircleFactor, rayDecayCircleFactor)
-  // dynamic 
-  gl.uniform1f(particleDrawUniformLocations.dTime, 0)
-  gl.uniform2fv(particleDrawUniformLocations.playerPosition, [0,0])
-  gl.uniform2fv(particleDrawUniformLocations.shift, [0,0])
+  var updateParticleDrawUniforms = () => {
+    gl.useProgram(particleDrawProgram) 
+    // const
+    gl.uniform1i(particleDrawUniformLocations.particlePositions, 0)
+    gl.uniform1i(particleDrawUniformLocations.particleColors, 1)
+    gl.uniform1i(particleDrawUniformLocations.particlePerpendiculars, 2)
+    gl.uniform1ui(particleDrawUniformLocations.particleCountSqrt, particleCountSqrt) 
+    gl.uniform1f(particleDrawUniformLocations.halfWidth, halfWidth )
+    gl.uniform1f(particleDrawUniformLocations.decay, rayDecay)
+    gl.uniform1f(particleDrawUniformLocations.decayCircleFactor, rayDecayCircleFactor)
+    // dynamic 
+    gl.uniform1f(particleDrawUniformLocations.dTime, 0)
+    gl.uniform2fv(particleDrawUniformLocations.playerPosition, [0,0])
+    gl.uniform2fv(particleDrawUniformLocations.shift, [0,0])
+  }
+  updateParticleDrawUniforms() 
 
   var frameTexture = []
   var frameBuffer = []
@@ -343,14 +342,14 @@ function main() {
   var textureDrawProgram = shaderTools.createProgramFromSources(
     gl, [vsTextureDraw, fsTextureDraw]
   )
-  gl.useProgram(textureDrawProgram)
   var textureDrawUniformLocations = getUniformLocations(gl, textureDrawProgram, [
     'position', 
     'size',
     'tex'
   ])
-    
+  gl.useProgram(textureDrawProgram)
   gl.uniform1i(textureDrawUniformLocations.tex, 0)
+
   var drawTexture = (glTexture, x, y, size) => {
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
@@ -371,7 +370,6 @@ function main() {
   var postProcessProgram = shaderTools.createProgramFromSources(
     gl, [vsPostProcess, fsPostProcess]
   )
-  gl.useProgram(postProcessProgram) 
   var postProcessUniformLocations = getUniformLocations(gl, postProcessProgram, [
     'frameTexture',
     'decay',
@@ -379,10 +377,14 @@ function main() {
     'decayCircleFactor',
     'shift'
   ])
-  gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
-  gl.uniform1f(postProcessUniformLocations.decay, rayDecay) 
-  gl.uniform1f(postProcessUniformLocations.decayCircleFactor, rayDecayCircleFactor) 
-  gl.uniform2fv(postProcessUniformLocations.shift, [0,0])
+  var updatePostProcessUniforms = () => {
+    gl.useProgram(postProcessProgram) 
+    gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
+    gl.uniform1f(postProcessUniformLocations.decay, rayDecay) 
+    gl.uniform1f(postProcessUniformLocations.decayCircleFactor, rayDecayCircleFactor) 
+    gl.uniform2fv(postProcessUniformLocations.shift, [0,0])
+  }
+  updatePostProcessUniforms()
 
   var postProcess = (dTime, toBuf, shift) => {
     var fromBuf = 1 - toBuf
@@ -407,7 +409,10 @@ function main() {
   var finalDrawUniformLocations = getUniformLocations(gl, finalDrawProgram, [
     'tex'
   ])
-  gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
+  var updateFinalDrawUniforms = () => {
+    gl.useProgram(finalDrawProgram) 
+    gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
+  }
 
   var finalDraw = (dTime, toBuf) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
@@ -430,7 +435,19 @@ function main() {
   gl.blendFunc(gl.SRC_ALPHA, gl.DST_ALPHA)
   gl.disable(gl.BLEND) 
 
-  var gamePlay = new GamePlay()
+  var gamePlay = new GamePlay({
+      playerAcceleration: 1,
+      playerFriction: 0.02,
+      playerBoost: 1.5,
+      boostRegenerate: 10.2, // per second
+      boostStaminaCosts: 0.3,
+      berserkEnableRageCosts: 0.1,
+      berserkRageDrain: 0.05, // per second 
+      mapSize,
+      tileSize
+    },
+    mapData
+  )
 
   var shift = []
   var lastPlayerPos = [0,0]
@@ -446,6 +463,12 @@ function main() {
 
   var dTime, now, then = Date.now()
   var toBuf = 1
+  var displayCenter = [0, 0]
+  var shift = [0, 0]
+  var previousDisplayCenter = [0, 0]
+  var luminance = 1
+  var inGame = false
+
   var loop = () =>  {
     now = Date.now()
     dTime = (now - then) / 1000
@@ -453,14 +476,16 @@ function main() {
     
     toBuf = 1 - toBuf
 
-    gamePlay.step(dTime) 
-
-    var playerPos = gamePlay.getPlayerPosition().map(v => (v)) 
-    shift[0] = (playerPos[0] - lastPlayerPos[0])
-    shift[1] = (playerPos[1] - lastPlayerPos[1])
-    lastPlayerPos[0] = playerPos[0]
-    lastPlayerPos[1] = playerPos[1]
-
+    if(inGame === true) {
+      gamePlay.step(dTime) 
+      displayCenter = gamePlay.getPlayerPosition().map(v => (v)) 
+      shift[0] = (playerPos[0] - lastPlayerPos[0])
+      shift[1] = (playerPos[1] - lastPlayerPos[1])
+      lastPlayerPos[0] = playerPos[0]
+      lastPlayerPos[1] = playerPos[1]
+    } else {
+      shift = [0, 0]
+    }
 
     updateParticlePhysics(dTime, toBuf)
     postProcess(dTime, toBuf, shift) 
@@ -560,6 +585,7 @@ function joinServer(playerName) {
       console.error('malformed message', ev.data) 
     }
   }
+  
 }
 
 function joinGame() {
@@ -567,10 +593,22 @@ function joinGame() {
   
 }
 
+var fullscreen = false
+function toggleFullscreen() {
+  if(fullscreen) {
+    document.exitFullscreen()
+    fullscreen = false
+  } else {
+    document.documentElement.requestFullscreen()
+    fullscreen = true
+  }
+} 
+
 window.addEventListener('load', () => {
   var hudCallbacks = {
     joinServer,
-    joinGame
+    joinGame,
+    toggleFullscreen, 
   }
   var hud = new HUD(hudCallbacks)
   main()

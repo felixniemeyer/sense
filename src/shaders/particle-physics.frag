@@ -15,7 +15,6 @@ uniform sampler2D particleVelocities;
 uniform sampler2D particlePerpendiculars; 
 uniform usampler2D map; 
 uniform float dTime; 
-uniform bool preventRespawn;
 uniform vec2 playerPosition;
 uniform float particleSpeedPerSecond;
 uniform int mode;
@@ -71,13 +70,7 @@ void main()
 	}
 		
 	if(particleTooFar(p) || particleTooDark(p) || particleTurnsTooFast(p)) {
-		if(preventRespawn) {
-			disableParticle(p);
-			writeParticle(p);
-			return;
-		} else {
-			respawnParticle(p);
-		}
+		respawnParticle(p);
 	} 
 	
 	//position
@@ -202,15 +195,14 @@ bool mayBounce(
 {
 	vec2 wallTileIndex = nextLineIndex - (sign(v) + vec2(1,1)) * 0.5; 
 	wallTileIndex[axis] += sign(v[axis]); 
-	uvec4 tileValue = texture(map, wallTileIndex / float(mapSize) + 0.5); // texture not readable, obwohl es ok ausguckt
+	uvec4 tileValue = texture(map, wallTileIndex / float(mapSize) + 0.5); 
 
-	float units;
-
-	if( tileValue.a == uint(255)) { // TRY: == 1.0
+	if( tileValue.a == uint(255)) { 
 		p.velocity[axis] = - p.velocity[axis];
-		units = (v[axis] * unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0) / v[axis]; 
+		float units = unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0 / v[axis]; 
 		p.color *= vec4(tileValue.rgba) / 255.0;
-		newPos = prevPos + unitsToLine[axis] * v;
+		//newPos = prevPos + unitsToLine[axis] * v;
+		newPos = prevPos + units * v;
 		return true;
 	} else {
 		nextLineIndex[axis] += ( sign( v[axis] ) );

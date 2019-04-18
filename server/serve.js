@@ -106,7 +106,7 @@ var clientIdSequence = 0
 function initPlayer(ws) {
   ws.player = {
     position: [0, 0],
-    mode: 'spectator',
+    mode: 'spectating',
     id: clientIdSequence++
   }
 }

@@ -132,12 +132,18 @@ export default class HUD {
     this.menuStack.push(this.menu) 
     this.openMenu(
       this.createMenu('setting-menu', [
-          'there',
-          'aren\'t',
-          'any',
+          'fullscreen',
+          'no',
+          'more',
           'settings', 
           'yet', 
         ], (chosen) => {
+          switch(chosen) {
+          case 'fullscreen': 
+            this.callbacks.toggleFullscreen()
+            break
+          default: 
+          }
         }, () => {
           this.openMenu(this.menuStack.pop())
         }

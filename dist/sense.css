@@ -11,6 +11,8 @@ body {
 	font-weight: 900;
 	text-transform: uppercase; 
 
+	cursor: none;
+
 }
 
 h1 {
@@ -85,7 +87,6 @@ h1 {
 	top: 50%; 
 	transform: translate(-50%, -50%);
 	outline 1px solid green;
-	cursor: default; 
 	color: #fff;
 	font-size: 7vh;
 		

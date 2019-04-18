@@ -12,6 +12,7 @@ export default class Vec2 {
   scaleInPlace(f) {
     this.x *= f
     this.y *= f
+    return this
   }
 
   scale(f) {
@@ -24,6 +25,7 @@ export default class Vec2 {
   addInPlace(vec) {
     this.x += vec.x
     this.y += vec.y
+    return this
   }
   
   add(vec) {
@@ -36,6 +38,7 @@ export default class Vec2 {
   subtractInPlace(vec) {
     this.x -= vec.x
     this.y -= vec.y
+    return this
   }
   
   subtract(vec) {
@@ -74,4 +77,25 @@ export default class Vec2 {
       this.y
     ]
   }
+
+  divideCompWise(vec) {
+    return new Vec2(
+      this.x / vec.x, 
+      this.y / vec.y
+    )
+  }
+  
+  floorInPlace(vec) {
+    this.x = Math.floor(this.x) 
+    this.y = Math.floor(this.y) 
+    return this
+  }
+
+  sign() {
+    return new Vec2(
+      Math.sign(this.x), 
+      Math.sign(this.y) 
+    )
+  }
+
 }
