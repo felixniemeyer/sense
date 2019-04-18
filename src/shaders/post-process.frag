@@ -20,4 +20,5 @@ void main() {
 	d = 1.0 - (1.0 / (1.0 - min(d, 1.0) + decayCircleFactor)) * decayCircleFactor;
 	vec3 rgb = clamp(texture(frameTexture, ts + shift * 0.5).rgb, 0.0, 100.0);
 	fragColor = vec4(pow(d * decay, dTime) * rgb, 1.0);
+	
 }

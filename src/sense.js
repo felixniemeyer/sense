@@ -21,20 +21,29 @@ var gamePlay;
 function main() {
   // local settings
   var frameSize = 1024
-
-  //Params to play with
-  var particleCountSqrt = 32 // 32 is fine
-  var particleCount = particleCountSqrt * particleCountSqrt //leave this as it is
-  var halfWidth = 1.5 * 2 / frameSize
-  var particleSpeed = 1 // 1 is good
-  var rayDecay = 0.930713
-  var rayDecayCircleFactor = 0.1
-
-  //map related config
-  var mapSize = 128 //is defined on image load
-  var tileSize = 0.1 // update maxIntersectionChecks in ./shaders/particle-physics.frag accordingly
-
   var particlePhysicsTextureCount = 4
+
+  var menuParams = {
+    //Params to play with
+    particleCountSqrt: 32, // 32 is fine
+    halfWidth: 1.5 * 2 / frameSize,
+    particleSpeed: 1, // 1 is good
+    rayDecay: 0.930713,
+    rayDecayCircleFactor: 0.1,
+    rayAlpha: 0.75,
+    renderMode: 0,
+
+    //map related config
+    mapSize: 128, //is defined on image load
+    tileSize: 0.1 // update maxIntersectionChecks in ./shaders/particle-physics.frag accordingly
+  }
+  menuParams.particleCount = menuParams.particleCountSqrt * menuParams.particleCountSqrt
+
+  var ingameParams = {
+    rayAlpha: 0.3
+  }
+
+  var params = menuParams
 
 	var canvas = document.getElementById("canvas")
   canvas.setAttribute('height', frameSize) 
@@ -71,19 +80,19 @@ function main() {
   var mapData
   var image = new Image()
   image.onload = () => {
-    if(image.width !== image.height || image.width !== mapSize) {
+    if(image.width !== image.height || image.width !== params.mapSize) {
       console.error('Map height needs to equal width') 
       return 
     }
-    mapSize = image.width
+    params.mapSize = image.width
     gl.bindTexture(gl.TEXTURE_2D, mapTexture) 
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true) 
     gl.texImage2D(
       gl.TEXTURE_2D,
       0, 
       gl.RGBA8UI, 
-      mapSize, 
-      mapSize, 
+      params.mapSize, 
+      params.mapSize, 
       0,
       gl.RGBA_INTEGER,
       gl.UNSIGNED_BYTE,
@@ -124,7 +133,8 @@ function main() {
     'dTime', 
     'playerPosition', 
     'particleSpeedPerSecond',
-    'mode',
+    'rayAlpha',
+    'renderMode',
     'tileSize',
     'mapSize',
     'activeParticlesCountNormed', 
@@ -139,11 +149,12 @@ function main() {
     gl.uniform1i(particlePhysicsUniformLocations.map, 4)
     gl.uniform2fv(particlePhysicsUniformLocations.shift, [0, 0]) 
     gl.uniform2fv(particlePhysicsUniformLocations.playerPosition, [0, 0]) 
-    gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, particleSpeed)
-    gl.uniform1i(particlePhysicsUniformLocations.mode, 1)
-    gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
-    gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
-    gl.uniform1f(particlePhysicsUniformLocations.particleCountSqrt, particleCountSqrt) 
+    gl.uniform1f(particlePhysicsUniformLocations.particleSpeedPerSecond, params.particleSpeed)
+    gl.uniform1f(particlePhysicsUniformLocations.rayAlpha, params.rayAlpha) 
+    gl.uniform1i(particlePhysicsUniformLocations.renderMode, params.renderMode)
+    gl.uniform1f(particlePhysicsUniformLocations.tileSize, params.tileSize)
+    gl.uniform1i(particlePhysicsUniformLocations.mapSize, params.mapSize) 
+    gl.uniform1f(particlePhysicsUniformLocations.particleCountSqrt, params.particleCountSqrt) 
   }
   updateParticlePhysicsUniforms()
 
@@ -158,8 +169,8 @@ function main() {
         gl.TEXTURE_2D, 
         0, 
         gl.RGBA32F, 
-        particleCountSqrt, 
-        particleCountSqrt, 
+        params.particleCountSqrt, 
+        params.particleCountSqrt, 
         0, 
         gl.RGBA,
         gl.FLOAT,
@@ -214,7 +225,7 @@ function main() {
       gl.COLOR_ATTACHMENT2,
       gl.COLOR_ATTACHMENT3
     ])
-		gl.viewport(0, 0, particleCountSqrt, particleCountSqrt)
+		gl.viewport(0, 0, params.particleCountSqrt, params.particleCountSqrt)
 
     gl.useProgram(particlePhysicsProgram) 
     gl.uniform1f(particlePhysicsUniformLocations.dTime, dTime)
@@ -247,10 +258,10 @@ function main() {
     gl.uniform1i(particleDrawUniformLocations.particlePositions, 0)
     gl.uniform1i(particleDrawUniformLocations.particleColors, 1)
     gl.uniform1i(particleDrawUniformLocations.particlePerpendiculars, 2)
-    gl.uniform1ui(particleDrawUniformLocations.particleCountSqrt, particleCountSqrt) 
-    gl.uniform1f(particleDrawUniformLocations.halfWidth, halfWidth )
-    gl.uniform1f(particleDrawUniformLocations.decay, rayDecay)
-    gl.uniform1f(particleDrawUniformLocations.decayCircleFactor, rayDecayCircleFactor)
+    gl.uniform1ui(particleDrawUniformLocations.particleCountSqrt, params.particleCountSqrt) 
+    gl.uniform1f(particleDrawUniformLocations.halfWidth, params.halfWidth )
+    gl.uniform1f(particleDrawUniformLocations.decay, params.rayDecay)
+    gl.uniform1f(particleDrawUniformLocations.decayCircleFactor, params.rayDecayCircleFactor)
     // dynamic 
     gl.uniform1f(particleDrawUniformLocations.dTime, 0)
     gl.uniform2fv(particleDrawUniformLocations.playerPosition, [0,0])
@@ -288,9 +299,9 @@ function main() {
   gl.bindVertexArray(particleSegmentsVao)
   var particleVerticesBuffer = gl.createBuffer()
   var particleVerticesIndexBuffer = gl.createBuffer()
-  var vertexData = new Uint16Array(particleCount * 2 * 4) // 2 uint/vertex, 4 vertices/particle
-  var indexData = new Uint16Array(particleCount * 2 * 3) // 2 triangles/particle
-  for(var i = 0; i < particleCount; i++) {
+  var vertexData = new Uint16Array(params.particleCount * 2 * 4) // 2 uint/vertex, 4 vertices/particle
+  var indexData = new Uint16Array(params.particleCount * 2 * 3) // 2 triangles/particle
+  for(var i = 0; i < params.particleCount; i++) {
     for(var v = 0; v < 4; v++) {
       var index = i * 8 + v * 2
       vertexData[index] = i
@@ -311,7 +322,7 @@ function main() {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, particleVerticesIndexBuffer) 
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW) 
 
-  var drawParticles = (dTime, fromBuf) => {
+  var drawParticles = () => {
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, particlePhysicsTextures[toBuf][0]) 
     gl.activeTexture(gl.TEXTURE1)
@@ -324,17 +335,17 @@ function main() {
     gl.viewport(0,0,frameSize,frameSize)
     
     gl.useProgram(particleDrawProgram) 
-    gl.uniform2fv(particleDrawUniformLocations.playerPosition, gamePlay.getPlayerPosition()) 
+    gl.uniform2fv(particleDrawUniformLocations.playerPosition, displayCenter) 
     gl.uniform1f(particleDrawUniformLocations.dTime, dTime)
     gl.uniform1ui(
       particleDrawUniformLocations.activeParticlesCount, 
-      Math.floor(gamePlay.getLuminance() * particleCount) 
+      Math.floor(luminance * params.particleCount) 
     )
 
     gl.bindVertexArray(particleSegmentsVao) 
     
     gl.enable(gl.BLEND)  
-    gl.drawElements(gl.TRIANGLES, 6 * particleCount, gl.UNSIGNED_SHORT, 0)
+    gl.drawElements(gl.TRIANGLES, 6 * params.particleCount, gl.UNSIGNED_SHORT, 0)
     gl.disable(gl.BLEND) 
   }
 
@@ -380,15 +391,13 @@ function main() {
   var updatePostProcessUniforms = () => {
     gl.useProgram(postProcessProgram) 
     gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
-    gl.uniform1f(postProcessUniformLocations.decay, rayDecay) 
-    gl.uniform1f(postProcessUniformLocations.decayCircleFactor, rayDecayCircleFactor) 
+    gl.uniform1f(postProcessUniformLocations.decay, params.rayDecay) 
+    gl.uniform1f(postProcessUniformLocations.decayCircleFactor, params.rayDecayCircleFactor) 
     gl.uniform2fv(postProcessUniformLocations.shift, [0,0])
   }
   updatePostProcessUniforms()
 
-  var postProcess = (dTime, toBuf, shift) => {
-    var fromBuf = 1 - toBuf
-
+  var postProcess = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer[toBuf]) 
     gl.viewport(0,0,frameSize, frameSize) 
   
@@ -407,14 +416,15 @@ function main() {
     vsFinalDraw, fsFinalDraw
   ])
   var finalDrawUniformLocations = getUniformLocations(gl, finalDrawProgram, [
-    'tex'
+    'frameTexture'
   ])
   var updateFinalDrawUniforms = () => {
     gl.useProgram(finalDrawProgram) 
-    gl.uniform1i(postProcessUniformLocations.frameTexture, 0)
+    gl.uniform1i(finalDrawUniformLocations.frameTexture, 0)
   }
+  updateFinalDrawUniforms()
 
-  var finalDraw = (dTime, toBuf) => {
+  var finalDraw = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
     gl.viewport(0,0,frameSize,frameSize) 
 
@@ -443,8 +453,8 @@ function main() {
       boostStaminaCosts: 0.3,
       berserkEnableRageCosts: 0.1,
       berserkRageDrain: 0.05, // per second 
-      mapSize,
-      tileSize
+      mapSize: params.mapSize,
+      tileSize: params.tileSize
     },
     mapData
   )
@@ -462,7 +472,7 @@ function main() {
   })
 
   var dTime, now, then = Date.now()
-  var toBuf = 1
+  var fromBuf, toBuf = 1
   var displayCenter = [0, 0]
   var shift = [0, 0]
   var previousDisplayCenter = [0, 0]
@@ -474,6 +484,7 @@ function main() {
     dTime = (now - then) / 1000
     then = now
     
+    fromBuf = toBuf
     toBuf = 1 - toBuf
 
     if(inGame === true) {
@@ -487,13 +498,13 @@ function main() {
       shift = [0, 0]
     }
 
-    updateParticlePhysics(dTime, toBuf)
-    postProcess(dTime, toBuf, shift) 
-    drawParticles(dTime, toBuf)
+    updateParticlePhysics()
+    postProcess() 
+    drawParticles()
 
-    finalDraw(dTime, toBuf)
+    finalDraw()
 
-    /* var width = 2 * particleCountSqrt / frameSize
+    var width = 2 * params.particleCountSqrt / frameSize
     for(var i = 0; i < particlePhysicsTextureCount; i++) {
       drawTexture(
         particlePhysicsTextures[toBuf][i], 
@@ -501,7 +512,7 @@ function main() {
         -1 + width, 
         width
       )
-    } */
+    }
     
     setTimeout(() => { 
       if(!stop) requestAnimationFrame(loop) 

@@ -17,7 +17,8 @@ uniform usampler2D map;
 uniform float dTime; 
 uniform vec2 playerPosition;
 uniform float particleSpeedPerSecond;
-uniform int mode;
+uniform float rayAlpha; 
+uniform int renderMode;
 uniform float tileSize; 
 uniform int mapSize;
 uniform float activeParticlesCountNormed;
@@ -76,7 +77,7 @@ void main()
 	//position
 	vec2 newPos = p.B + p.velocity * dTime;
 
-	if(mode == 1) { // game
+	if(renderMode == 1) { 
 		mapCollisionCheck(p, newPos);
 	}
 
@@ -144,25 +145,25 @@ void disableParticle(inout Particle p) {
 
 void respawnParticle(inout Particle p) {
 
-	if(mode == 0) { //menu
+	if(renderMode == 0) { //menu
 		float rotationF = random(p, 1.23, 98.078, 29.102, -1.0, 1.0);
 		rotationF = pow(rotationF, 3.0); //less quick turners
 		p.rotation = rotationF * PI * particleSpeedPerSecond; //1 rotation per 10 seconds
-	} else if(mode == 1) { //game
+	} else if(renderMode == 1) { //game
 		p.rotation = 0.0;
 	}
 	p.rotationAdd = - p.rotation;
 
-	if(mode == 0) {
+	if(renderMode == 0) {
 		float red = random(p, 1.123, 2.89, 89.21, 0.3, 1.0); 
-		p.color = vec4(red,0.5,1.0,1);
+		p.color = vec4(red,0.5,1.0,rayAlpha);
 	} else {
-		p.color = vec4(1,1,1,0.3);
+		p.color = vec4(1,1,1,rayAlpha);
 	}
 
 	float direction = random(p, 1.22, 2.11, 3.0, 0.0, 2.0*PI);
 	float speed = particleSpeedPerSecond;
-	if(mode == 0) {
+	if(renderMode == 0) {
 		speed *= random(p, 2.19, 0.313, 81.23, 0.15, 1.0);
 	}
 	p.velocity = vec2(cos(direction), sin(direction)) * speed;  
@@ -201,8 +202,8 @@ bool mayBounce(
 		p.velocity[axis] = - p.velocity[axis];
 		float units = unitsToLine[axis] - sign(v[axis]) * tileSize / 100.0 / v[axis]; 
 		p.color *= vec4(tileValue.rgba) / 255.0;
-		//newPos = prevPos + unitsToLine[axis] * v;
-		newPos = prevPos + units * v;
+		newPos = prevPos + unitsToLine[axis] * v;
+		//newPos = prevPos + units * v;
 		return true;
 	} else {
 		nextLineIndex[axis] += ( sign( v[axis] ) );
