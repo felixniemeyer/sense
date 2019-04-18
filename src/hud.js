@@ -1,27 +1,20 @@
 export default class HUD {
-  // blink
-  constructor() {
+  constructor(callbacks) {
     this.overlay = document.getElementById('hud') 
     this.menuStack = []
     this.initLids() 
     this.openingDuration = 150
     this.closeDuration = 50 //50 is good
-    this.removeDuration = 150
+    this.removeDuration = 200
+    
+    this.callbacks = callbacks
+
     document.addEventListener('keydown', (ev) => {
       if(ev.code === 'Enter') {
-        this.blink()
-        this.menu.selectCallback(this.menu.options[this.menu.selected])
+        this.onEnter()
       }
       if(ev.code === 'Backspace') {
-        this.blink()
-        this.menu.backCallback()
-      }
-    })
-    document.addEventListener('keydown', (ev) => {
-      if(ev.code === 'KeyS') {
-        this.closeTime = Date.now()
-        this.open()
-        this.openWide()
+        this.onBackspace()
       }
     })
     
@@ -46,18 +39,18 @@ export default class HUD {
   }
 
   openMainMenu() {
+    this.blink()
     this.openMenu(
       this.createMenu('main-menu', [
-          'new server', 
           'join server',
           'settings',
+          'about'
         ], (chosen) => {
           switch(chosen) {
             case 'join server': 
-              this.open()
-              this.openWide()
+              this.chooseName()
               break   
-            case 'new server': 
+            case 'about': 
               this.openNewServerMenu()
               break
             case 'settings': 
@@ -68,6 +61,55 @@ export default class HUD {
         }, () => {}
       )
     )
+  }
+
+  chooseName() {
+    this.menuStack.push(this.menu) 
+    this.updateLids(0)
+    this.show('choose-name') 
+    this.select('name') 
+    this.onEnter = () => {
+      this.unshow('choose-name') 
+      console.log('yee') 
+      this.open()
+      this.openWide()
+      this.callbacks.joinServer(document.getElementById('name'))
+      this.enableSpectate()
+    }
+    this.onBackspace = () => {
+      if( document.getElementById('name').textContent.length === 0 ) {
+        this.unshow('choose-name') 
+        this.deZoom()
+        this.openMenu(this.menuStack.pop())
+      }
+    }
+  }
+
+  enableSpectate() {
+    this.onEnter = () => {
+      this.unshow('respawn-hint') 
+      this.enableIngame.bind(this) 
+    }
+    this.onBackspace = () => {
+      this.unshow('respawn-hint')
+      this.openMenu(this.menuStack.pop()) 
+    }
+  }
+
+  show(id) {
+    document.getElementById(id).style.display = 'block'
+  }
+
+  select(id) {
+    var selection = window.getSelection()
+    var range = document.createRange()
+    range.selectNodeContents(document.getElementById(id))
+    selection.removeAllRanges()
+    selection.addRange(range)
+  }
+
+  unshow(id) {
+    document.getElementById(id).style.display = ''
   }
 
   openNewServerMenu() {
@@ -90,9 +132,11 @@ export default class HUD {
     this.menuStack.push(this.menu) 
     this.openMenu(
       this.createMenu('setting-menu', [
-          'audio', 
-          'graphics',
-          'controls'
+          'there',
+          'aren\'t',
+          'any',
+          'settings', 
+          'yet', 
         ], (chosen) => {
         }, () => {
           this.openMenu(this.menuStack.pop())
@@ -128,6 +172,13 @@ export default class HUD {
   }
 
   openMenu(menu) {
+    this.blink()
+    this.onEnter = () => { 
+      this.menu.selectCallback(this.menu.options[this.menu.selected]) 
+    }
+    this.onBackspace = () => { 
+      this.menu.backCallback() 
+    }
     this.menu = menu
     while(this.wheel.lastChild) {
       this.wheel.removeChild(this.wheel.lastChild) 
@@ -146,8 +197,6 @@ export default class HUD {
     this.menu.anim.startTime = Date.now()
     this.menu.anim.start = this.menu.anim.rotation
     this.menu.anim.dest = + this.wheelPos / this.menu.options.length
-    console.log(this.menu.options) 
-    console.log(this) 
     this.rotateMenuWheel()
   }
   
@@ -161,7 +210,6 @@ export default class HUD {
     } 
     x = (1 - Math.cos(Math.PI * x)) / 2
     var y = this.menu.anim.start * ( 1 - x ) + this.menu.anim.dest * x
-    console.log(this.menu.anim)
     this.menu.anim.rotation = y
     this.wheel.style.transform = `rotate(${-y}turn)`
   }
@@ -211,10 +259,10 @@ export default class HUD {
       C  1 -1,  1  1,  1  1
       C  ${openness * 0.8} -${openness}, -${openness * 0.4} -${openness}, -1 -1
     `)
+
   }
 
   openWide(fd) {
-    this.updateLids(0) 
     this.fadeStart = Date.now()
     this.zoomIn()
   }
@@ -223,11 +271,19 @@ export default class HUD {
     var x = (Date.now() - this.fadeStart) / this.removeDuration
     var y = 1 + 1.3 * Math.min(x, 1)
     this.lids.setAttributeNS(null, 'transform', `scale(${y}, ${y})`)
+    this.updateLids(x) 
     if(x < 1){
       requestAnimationFrame(this.zoomIn.bind(this))
     } else {
       this.wheel.style.display = 'none'
     }
-    this.wheel.style.transform = `rotate(${-this.menu.anim.rotation}turn) scale(${1.3*y}, ${1.3*y})`
+    var z = 1 + 2 * Math.min(x, 1) 
+    this.wheel.style.transform = `rotate(${-this.menu.anim.rotation}turn) scale(${z}, ${z})`
   }
+  
+  deZoom() {
+    this.lids.setAttributeNS(null, 'transform', '') 
+    this.wheel.style.transform = `rotate(${-this.menu.anim.rotation}turn)`
+  }
+
 }

@@ -14,9 +14,12 @@ import fsPostProcess from './shaders/post-process.frag'
 import vsFinalDraw from './shaders/final-draw.vert'
 import fsFinalDraw from './shaders/final-draw.frag'
 
-import map from './maps/128_skull.png'
+import map from '../maps/128_skull.png'
+
+var gamePlay; 
 
 function main() {
+
   //Params to play with
   var frameSize = 1024
   var particleCountSqrt = 32 // 32 is fine
@@ -142,7 +145,6 @@ function main() {
   gl.uniform1f(particlePhysicsUniformLocations.tileSize, tileSize)
   gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
   gl.uniform1f(particlePhysicsUniformLocations.particleCountSqrt, particleCountSqrt) 
-  console.log(mapSize)
 
   var dataBuffer
   var particlePhysicsTextures = []
@@ -436,7 +438,6 @@ function main() {
   var stop = false
 
   document.addEventListener('keydown', (ev) => {
-    console.log(ev.code) 
     if(ev.code === 'Escape'){
       stop = !stop
       if(stop === false) requestAnimationFrame(loop) 
@@ -467,7 +468,7 @@ function main() {
 
     finalDraw(dTime, toBuf)
 
-    var width = 2 * particleCountSqrt / frameSize
+    /* var width = 2 * particleCountSqrt / frameSize
     for(var i = 0; i < particlePhysicsTextureCount; i++) {
       drawTexture(
         particlePhysicsTextures[toBuf][i], 
@@ -475,7 +476,7 @@ function main() {
         -1 + width, 
         width
       )
-    }
+    } */
     
     setTimeout(() => { 
       if(!stop) requestAnimationFrame(loop) 
@@ -518,30 +519,13 @@ function createCircleVao(gl, circleRes) {
   var b = 1 - a
   for(var i = 0; i < circleRes; i++) {
     current = next.slice()
-    console.log(current) 
     for(var s = 0; s < current.length; s++) {
-      console.log(Math.floor(s/2)) 
       vi = 4 * Math.floor(s / 2) + s % 2
       nvi = (s + 2) % current.length
       next[vi  ] = current[s] * a + current[nvi] * b
       next[vi+2] = current[s] * b + current[nvi] * a
-      /*
-      s = 0
-      => 0
-      => 2
-      s = 1
-      => 1
-      => 3
-      
-      s = 2
-      => 4
-      => 6
-      s = 3
-      => 5
-      => 7*/
     }
   }
-  console.log(next) 
   var data = new Float32Array(next) 
   var circleVao = gl.createVertexArray(circleVao)
   gl.bindVertexArray(circleVao) 
@@ -555,16 +539,39 @@ function createCircleVao(gl, circleRes) {
 
 function getUniformLocations(gl, program, uniformNames) {
   var uniformMap = {}
-  console.log(uniformNames) 
   for(var i = 0; i < uniformNames.length; i++) {
     var uName = uniformNames[i] 
     uniformMap[uName] = gl.getUniformLocation(program, uName)
   }
-  console.log(uniformMap) 
   return uniformMap
 }
 
+var ws; 
+function joinServer(playerName) {
+  ws = new WebSocket('ws://localhost:8080') 
+  ws.onmessage = (ev) => {
+    try {
+      var msg = JSON.parse(ev.data) 
+      switch(msg.type) {
+      case 'respawn': 
+        
+      }
+    } catch(err) {
+      console.error('malformed message', ev.data) 
+    }
+  }
+}
+
+function joinGame() {
+   
+  
+}
+
 window.addEventListener('load', () => {
-  var hud = new HUD()
+  var hudCallbacks = {
+    joinServer,
+    joinGame
+  }
+  var hud = new HUD(hudCallbacks)
   main()
 })

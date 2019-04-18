@@ -8,5 +8,9 @@
   },
   "author": "",
   "license": "ISC",
-  "devDependencies": {}
+  "devDependencies": {},
+  "dependencies": {
+    "pngjs": "^3.4.0",
+    "ws": "^6.2.1"
+  }
 }

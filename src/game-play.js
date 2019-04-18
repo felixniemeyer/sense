@@ -72,7 +72,6 @@ export default class GamePlay {
       } else {
         vec = this.player.velocity.normed()
       }
-      console.log(vec) 
       var boostFactor = boost / this.params.boostStaminaCosts
       vec.scaleInPlace(this.params.playerBoost * boostFactor)
       this.player.velocity.addInPlace(vec)
