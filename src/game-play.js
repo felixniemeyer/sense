@@ -1,11 +1,11 @@
 import Vec2 from './vec2.js'
 
-function MissingParamsException(message) {
+function MissingParamsException(missingParams) {
   this.message = 'Missing parameters for GamePlay creation: ' + missingParams.join(', ')
 }
 
 export default class GamePlay {
-  constructor(gameParams, mapData) {
+  constructor(gameParams, mapData, log) {
     var defaultParams = {
       playerAcceleration: 1,
       playerFriction: 0.02,
@@ -15,6 +15,7 @@ export default class GamePlay {
       berserkEnableRageCosts: 0.1,
       berserkRageDrain: 0.05, // per second 
     }
+    this.log = log
     this.params = Object.assign({}, gameParams)
     var missingParams = []
     if(this.params.mapSize === undefined) {
@@ -24,20 +25,28 @@ export default class GamePlay {
       missingParams.push('tileSize') 
     }
     if(missingParams.length > 0) {
-      this.throw(new MissingParamsException(missingParams)) 
+      throw(new MissingParamsException(missingParams)) 
     }
 
     this.mapData = mapData
     
+    var alphaValues = new Set()
+    for(var i = 0; i < mapData.length; i++) {
+      if(i % 4 === 3) {
+        alphaValues.add(mapData[i])
+      }
+    }
+    
     this.emitting = true;       
+    var mapCenter = (this.params.mapSize / 2 + 0.5) * this.params.tileSize
     this.player = {
-      position: new Vec2(0,0),
+      position: new Vec2(mapCenter, mapCenter),
       velocity: new Vec2(0,0),
       accelerationVector: new Vec2(0,0),
       stamina: 1, 
       rage: 0,
       berserkModeOn: false, 
-      rays: 1 / 16 // fraction of the `of rays the player emits
+      rays: 2 / 16 // fraction of the `of rays the player emits
       /* wenn er jemanden killt, kommen direkt alle strahlen wieder
         wenn er es wieder ausmacht, kommen die Strahlen langsam wieder */
     }
@@ -51,7 +60,7 @@ export default class GamePlay {
       this.keydowns[ev.code] = true
       switch(ev.code) {
         case 'Space':
-          if(this.berserkModeOn) {
+          if(this.player.berserkModeOn) {
             this.disableBerserk()
           } else {
             this.goBerserk()
@@ -75,7 +84,7 @@ export default class GamePlay {
 
     this.player.stamina = Math.min(1, this.player.stamina + dTime * this.params.boostRegenerate)
     
-    this.playerMovement() 
+    this.playerMovement(dTime) 
   }
 
   playerMovement(dTime) {
@@ -83,63 +92,90 @@ export default class GamePlay {
 
     this.considerMapCollision(newPos)
 
+    this.player.position = newPos
+
     this.player.velocity.scaleInPlace(Math.pow(this.params.playerFriction, dTime))
+  }
+    
+  getMapTileAt(tileIndex) {
+    // tileIndex.y = this.params.mapSize - 1 - tileIndex.y
+    var i = 4 * ( tileIndex.y * this.params.mapSize + tileIndex.x ) 
+    return {
+      r: this.mapData[i+0],
+      g: this.mapData[i+1],
+      b: this.mapData[i+2],
+      a: this.mapData[i+3]
+    }
   }
 
   considerMapCollision(newPos) {
-    var prevPos = this.player.position.copy()
-    var v, nextLineIndex, unitsToLine 
+    var to = newPos.copy()
+    var from = this.player.position.copy()
+    var movement = to.subtract(from)
 
-    var checkTileCollision = (axis) => {
-      console.log('v', v) 
-      var wallTileIndex = nextLineIndex.subtract(v.sign().addInPlace(new Vec2(1,1)))
-      wallTileIndex.addInPlace(v.sign())
-      console.log(wallTileIndex)
-      tileValu = this.mapData[wallTileIndex[0] + wallTileIndex[1] * this.params.mapSize]
-      if(tileValue.a == 255) {
-        p.velocity[axis] = 0
-        var units = unitsToLine[axis] - Math.sign(v[axis]) * this.params.tileSize * 0.01 / v[axis]
-        prevPos.addInPlace(v.scale(units)) 
-        newPos[axis] = prevPo[axis] 
+    var nextWallsDirection = new Vec2(0, 0)
+    var nextWalls = from.scale(1 / this.params.tileSize).floor()
+    for(var i of ['x', 'y']) {
+      if(movement[i] > 0) {
+        nextWallsDirection[i] = 1
+        nextWalls[i]++
       } else {
-        nextLineIndex[axis] += Math.sign(v[axis])
+        nextWallsDirection[i] = -1
       }
     }
 
-    while(true) {
-      console.log(prevPos, newPos) 
-      v = newPos.subtract(prevPos) 
-      nextLineIndex = prevPos.divideCompWise( this.params.tileSize )
-      nextLineIndex.addInPlace(v.sign()) 
-      unitsToLine = nextLineIndex.scale(this.params.tileSize)
-      unitsToLine.subtractInPlace(this.getPlayerPosition) 
-
-      var couldCollide = [true, true]
-      for(var i = 0; i < 2; i++) {
-        if(v[1] === 0 || unitsToLine[1] <= 0 || unitsToLine[1] > 1) {
+    var mightCollideWithWall = (axis) => {
+      var wallTileIndex = nextWalls.copy()
+      wallTileIndex.subtractInPlace(nextWallsDirection.add(new Vec2(1,1)).divideBy(2))
+      wallTileIndex[axis] += nextWallsDirection[axis]
+      var tileValue = this.getMapTileAt(wallTileIndex) 
+      if(tileValue.a === 255) {
+        this.player.velocity[axis] = 0
+        movement[axis] = 0
+        newPos[axis] = nextWalls[axis] * this.params.tileSize 
+        newPos[axis] -= nextWallsDirection[axis] * this.params.tileSize * 0.01
+      } else {
+        nextWalls[axis] += nextWallsDirection[axis]
+      }
+    }
+    var distanceToWall = new Vec2(0, 0)
+    var unitsToWall = new Vec2(0, 0)
+    var couldCollide = {
+      x: true, 
+      y: true
+    }
+    var c = 0
+    while(couldCollide.x || couldCollide.y) {
+      c++
+      for(i of ['x', 'y']) {        
+        if(movement[i] === 0) {
           couldCollide[i] = false
+        } else {
+          unitsToWall[i] = (nextWalls[i] * this.params.tileSize - from[i]) / movement[i]
+          if(unitsToWall[i] < 0 || unitsToWall[i] > 1) {
+            couldCollide[i] = false
+          } 
         }
       }
-
-      if(couldCollide[0]) {
-        if(couldCollide[1]) {
-          if(unitsToLine[0] < unitsToLine[1]) {
-            checkTileCollision(0)
+  
+      if(couldCollide.x) {
+        if(couldCollide.y) {
+          if(unitsToWall.x < unitsToWall.y) {
+            mightCollideWithWall('x') 
+          } else if(unitsToWall.y > unitsToWall.x) {
+            mightCollideWithWall('y') 
           } else {
-            checkTileCollision(1)
+            mightCollideWithWall('x')
+            mightCollideWithWall('y')
           }
         } else {
-            checkTileCollision(0)
+          mightCollideWithWall('x') 
         }
-      } else if (couldCollide[1]) {
-        checkTileCollision(1)
-      } else {
-        break
+      } else if(couldCollide.y) {
+        mightCollideWithWall('y') 
       }
     }
   }
-  
-  
 
   boost() {
     if (this.player.velocity.length() !== 0) {
@@ -159,11 +195,11 @@ export default class GamePlay {
   }
 
   goBerserk() {
-    this.berserkModeOn = true
+    this.player.berserkModeOn = true
   }
   
   disableBerserk() {
-    this.berserkModeOn = false
+    this.player.berserkModeOn = false
   }
 
   considerInput(dTime) {
@@ -190,6 +226,7 @@ export default class GamePlay {
       
     }
     if(this.keydowns['Space']){ //assasinator mode
+      
     }
     if(this.keydowns['KeyD']){ //deploy item 
       
@@ -201,10 +238,14 @@ export default class GamePlay {
   }
 
   isInBerserkMode() {
-    return this.berserkModeOn
+    return this.player.berserkModeOn
   }
   
   getLuminance() {
     return this.player.rays
+  }
+
+  setPlayerPosition(vec) {
+    // this.player.position = new Vec2(vec[0], vec[1]) 
   }
 }

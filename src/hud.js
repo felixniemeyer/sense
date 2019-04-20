@@ -19,6 +19,7 @@ export default class HUD {
     })
     
     this.initMenu()
+
   }
 
   initMenu() {
@@ -70,7 +71,6 @@ export default class HUD {
     this.select('name') 
     this.onEnter = () => {
       this.unshow('choose-name') 
-      console.log('yee') 
       this.open()
       this.openWide()
       this.callbacks.joinServer(document.getElementById('name'))
@@ -292,4 +292,21 @@ export default class HUD {
     this.wheel.style.transform = `rotate(${-this.menu.anim.rotation}turn)`
   }
 
+  log(value, seconds, id) {
+    seconds = seconds || 60
+    var elementId = 'info_' + id 
+    var container = document.getElementById('info')
+    var info = id === undefined ? null : document.getElementById(elementId) 
+    if(info === null) {
+      info = document.createElement('p') 
+      if(id) {
+        info.id = elementId
+      }
+      container.appendChild(info) 
+      setTimeout(() => {
+        container.removeChild(info) 
+      }, seconds * 1000)
+    }
+    info.textContent = ( id ? `${id}: ` : '' ) + value
+  }
 }

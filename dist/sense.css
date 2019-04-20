@@ -37,6 +37,10 @@ h1 {
 	height: 100%; */
 }
 
+#offscreen-canvas {
+	display: none; 
+}
+
 #hud {
 	width: 100%; 
 	height: 100%
@@ -89,9 +93,22 @@ h1 {
 	outline 1px solid green;
 	color: #fff;
 	font-size: 7vh;
+	white-space: nowrap; 
 		
 }
 
 #name {
 	text-decoration: underline;
+}
+
+#info {
+	position: fixed; 
+	left: 1vh;
+	z-index: 5;
+}
+
+#info p {
+	margin: 1vh;
+	font-size: 2vh;
+	color: #fff;
 }

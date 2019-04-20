@@ -85,10 +85,11 @@ export default class Vec2 {
     )
   }
   
-  floorInPlace(vec) {
-    this.x = Math.floor(this.x) 
-    this.y = Math.floor(this.y) 
-    return this
+  floor(vec) {
+    return new Vec2(
+      Math.floor(this.x),
+      Math.floor(this.y) 
+    )
   }
 
   sign() {
@@ -98,4 +99,14 @@ export default class Vec2 {
     )
   }
 
+  toStr() {
+    return `(${this.x}, ${this.y})`
+  }
+
+  divideBy(d) {
+    return new Vec2(
+      this.x / d, 
+      this.y / d
+    )
+  }
 }

@@ -23,6 +23,7 @@ uniform float tileSize;
 uniform int mapSize;
 uniform float activeParticlesCountNormed;
 uniform float particleCountSqrt; 
+uniform int preventRespawn; 
 
 const int maxIntersectionChecks = 2 * 10; /* explanation 
 	2: x and y intersections
@@ -71,7 +72,13 @@ void main()
 	}
 		
 	if(particleTooFar(p) || particleTooDark(p) || particleTurnsTooFast(p)) {
-		respawnParticle(p);
+		if(preventRespawn == 0) {
+			respawnParticle(p);
+		} else {
+			disableParticle(p);
+			writeParticle(p);
+			return;
+		}
 	} 
 	
 	//position
@@ -94,7 +101,7 @@ void main()
 
 	p.A = p.B; 
 	p.B = newPos;
-	
+
 	writeParticle(p);
 }
 
@@ -196,7 +203,7 @@ bool mayBounce(
 {
 	vec2 wallTileIndex = nextLineIndex - (sign(v) + vec2(1,1)) * 0.5; 
 	wallTileIndex[axis] += sign(v[axis]); 
-	uvec4 tileValue = texture(map, wallTileIndex / float(mapSize) + 0.5); 
+	uvec4 tileValue = texture(map, wallTileIndex / float(mapSize)); 
 
 	if( tileValue.a == uint(255)) { 
 		p.velocity[axis] = - p.velocity[axis];
