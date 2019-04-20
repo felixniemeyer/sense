@@ -99,12 +99,15 @@ wss.on('connection', (ws) => {
   initPlayer(ws) 
   sendParams(ws) 
   ws.on('pong', heartbeat) 
-  ws.on('message', (rawMsg) => { handleMessage(rawMsg, ws) })
+  ws.on('message', (rawMsg) => { handleMessage(ws, rawMsg) })
 })
 
 var clientIdSequence = 0
 function initPlayer(ws) {
   ws.player = {
+    lastBroadcast: {
+      position: [0,0]  
+    },
     position: [0, 0],
     mode: 'spectating',
     id: clientIdSequence++
@@ -120,19 +123,15 @@ function sendParams(ws) {
 
 function handleMessage(ws, rawMsg) {
     var msg = parseMessage(rawMsg) 
+    console.log('received msg', msg) 
     if(msg !== undefined) {
       switch(msg.type) {
-      case 'respawnRequest':
-        respawnPlayer(ws)
+      case 'set-player-name':
+        ws.player.name = msg.payload.playerName
+        console.log(`player ${ws.player.id} set his name to ${ws.player.name}`)
         break
-      case 'positionUpdate': 
-        updatePosition(ws, msg.payload) 
-        break
-      case 'itemPickup': 
-        removeItem(ws, msg.payload)
-        break
-      case 'setNick': 
-        setNick(ws, msg.payload.nick) 
+      case 'set-player-position': 
+        ws.player.position = msg.payload.playerPosition
         break
       default: 
     }
@@ -152,12 +151,13 @@ const pingInterval = setInterval(() => {
   wss.clients.forEach((ws) => {
     console.log(ws.player.id) 
     if(ws.isAlive === false) {
+      disconnectPlayer(ws) 
       return ws.terminate()
     }
     ws.isAlive = false
     ws.ping(noop) 
   })
-}, 1000) //30000 is good
+}, 30000) //30000 is good
 
 function tick() {
   updateClients()
@@ -205,13 +205,23 @@ function squareDistance(A, B) {
 }
 
 function updateClients() {
-  wss.clients.forEach(ws => {
-    wss.clients.forEach(enemyWs => {
-      if(ws !== enemyWs) {
-        ws.send(JSON.stringify({
-          type: 'player-update',
-          payload: enemyWs.player
-        }))
+  wss.clients.forEach(playerWs => {
+    var sqrD = squareDistance(playerWs.player.lastBroadcast.position, playerWs.player.position) 
+    var bcPosition = sqrD > Math.pow(0.01, 2) 
+    if(bcPosition) {
+      playerWs.player.lastBroadcast.position = playerWs.player.position.slice()
+    }
+    wss.clients.forEach(receiverPlayerWs => {
+      if(playerWs !== receiverPlayerWs) {
+        if(bcPosition) {
+          receiverPlayerWs.send(JSON.stringify({
+            type: 'enemy-position',
+            payload: {
+              enemyId: playerWs.player.id,
+              enemyPosition: playerWs.player.position
+            }
+          }))
+        } 
       }
     })
   })
@@ -220,4 +230,17 @@ function updateClients() {
 function respawnPlayer(ws, payload) { 
   var i = Math.floor((Math.random() * playerSpawnPoints.length))
   ws.player.position = playerSpawnPoints[i].splice()
+}
+
+function disconnectPlayer(ws) { 
+  wss.clients.forEach(ws2 => {
+    if(ws != ws2) {
+      ws2.send(JSON.stringify({
+        type: 'remove-enemy',
+        payload: {
+          enemyId: ws.player.id
+        }
+      }))
+    }
+  })
 }

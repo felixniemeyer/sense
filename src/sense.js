@@ -408,7 +408,7 @@ function main() {
     toBuf = 1 - toBuf
 
     if(gamePlay !== undefined) {
-      gamePlay.step(dTime) 
+      gamePlay.tick(dTime) 
       var nextDisplayCenter = gamePlay.getPlayerPosition().map(v => (v)) 
       if(shift === undefined) {
         shift = [0, 0]
@@ -555,33 +555,50 @@ function getGlAndExtensions() {
 	}
 }
 
-var ws; 
+var ws
+var enemies = {}
 function joinServer(playerName) {
   ws = new WebSocket('ws://localhost:8080') 
 
   ws.onmessage = (ev) => {
+    var msgOk = true
     try {
+      console.log('received', ev.data) 
       var msg = JSON.parse(ev.data) 
+    } catch(err) {
+      msgOk = false
+      console.error('malformed message', ev.data) 
+    }
+    if(msgOk) {
       switch(msg.type) {
       case 'respawn': 
         gamePlay.setPlayerPosition(msg.payload.position)
         break
+      case 'enemy-position':
+        var enemy = enemies[msg.payload.enemyId]
+        if(enemy === undefined) {
+          enemy = {}
+          enemies[msg.payload.enemyId] = enemy
+        }
+        enemy.position = msg.payload.enemyPosition[0].slice
+        break        
+      //case 'item-add' (id, type, value) 
+      //case 'item-remove'
       default: 
       }
-    } catch(err) {
-      console.error('malformed message', ev.data) 
     }
   }
 
-  ws.onconnect = () => {
+  ws.onopen = () => {
     ws.send(JSON.stringify({
-      type: 'player-name', 
+      type: 'set-player-name', 
       payload: {
         playerName
       }
     }))
-  }
+
     joinGame()
+  }
 }
 
 function joinGame() {
@@ -605,7 +622,15 @@ function joinGame() {
       mapSize
     },
     mapData,
-    hud.log.bind(hud)
+    hud.log.bind(hud),
+    (playerPosition) => {
+      ws.send(JSON.stringify({
+        type: 'set-player-position',
+        payload: {
+          playerPosition
+        }
+      }))
+    }
   )
 
 }

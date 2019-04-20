@@ -109,4 +109,11 @@ export default class Vec2 {
       this.y / d
     )
   }
+  
+  distanceTo(vec) {
+    return Math.sqrt(
+      Math.pow(this.x - vec.x, 2) +
+      Math.pow(this.y - vec.y, 2) 
+    )
+  }
 }

@@ -5,7 +5,7 @@ function MissingParamsException(missingParams) {
 }
 
 export default class GamePlay {
-  constructor(gameParams, mapData, log) {
+  constructor(gameParams, mapData, log, sendPositionToServer) {
     var defaultParams = {
       playerAcceleration: 1,
       playerFriction: 0.02,
@@ -15,7 +15,6 @@ export default class GamePlay {
       berserkEnableRageCosts: 0.1,
       berserkRageDrain: 0.05, // per second 
     }
-    this.log = log
     this.params = Object.assign({}, gameParams)
     var missingParams = []
     if(this.params.mapSize === undefined) {
@@ -29,6 +28,9 @@ export default class GamePlay {
     }
 
     this.mapData = mapData
+    this.log = log
+    this.sendPositionToServer = sendPositionToServer
+    this.lastPositionSentToServer = new Vec2(0, 0)
     
     var alphaValues = new Set()
     for(var i = 0; i < mapData.length; i++) {
@@ -79,7 +81,7 @@ export default class GamePlay {
     })
   }
 
-  step(dTime) {
+  tick(dTime) {
     this.considerInput(dTime)
 
     this.player.stamina = Math.min(1, this.player.stamina + dTime * this.params.boostRegenerate)
@@ -93,6 +95,11 @@ export default class GamePlay {
     this.considerMapCollision(newPos)
 
     this.player.position = newPos
+
+    if(this.lastPositionSentToServer.distanceTo(this.player.position) > 0.05) {
+      this.sendPositionToServer(this.player.position.toArray())
+      this.lastPositionSentToServer = this.player.position.copy()
+    }
 
     this.player.velocity.scaleInPlace(Math.pow(this.params.playerFriction, dTime))
   }

@@ -73,7 +73,7 @@ export default class HUD {
       this.unshow('choose-name') 
       this.open()
       this.openWide()
-      this.callbacks.joinServer(document.getElementById('name'))
+      this.callbacks.joinServer(document.getElementById('name').textContent)
       this.enableSpectate()
     }
     this.onBackspace = () => {
