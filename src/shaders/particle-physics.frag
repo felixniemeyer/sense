@@ -24,13 +24,12 @@ uniform int mapSize;
 uniform float activeParticlesCountNormed;
 uniform float particleCountSqrt; 
 uniform int preventRespawn; 
+uniform float maxParticleDistance; 
 
 const int maxIntersectionChecks = 2 * 10; /* explanation 
 	2: x and y intersections
 	10: 1 / tileSize, needs to be updated manually!
 */
-
-const float maxRadius = 1.5; // 1.5 is good
 
 layout(location = 0) out vec4 partPosOut;
 layout(location = 1) out vec4 partColOut; 
@@ -126,7 +125,7 @@ Particle getParticle() {
 }
 
 bool particleTooFar(in Particle p) {
-	if( length( p.B - playerPosition ) > maxRadius) {
+	if( length( p.B - playerPosition ) > maxParticleDistance) {
 		return true;
 	}
 	return false;

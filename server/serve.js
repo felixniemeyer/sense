@@ -9,7 +9,8 @@ const params = {
     filePath: '../maps/128_skull.png',
     size: 0
   },
-  collisionRadius: 0.1
+  collisionRadius: 0.1, 
+  maxParticleDistance: 1.5
 }
 
 console.log('loading map') 
@@ -212,7 +213,7 @@ function updateClients() {
       playerWs.player.lastBroadcast.position = playerWs.player.position.slice()
     }
     wss.clients.forEach(receiverPlayerWs => {
-      if(playerWs !== receiverPlayerWs) {
+      if(playerWs !== receiverPlayerWs && playerInSight(playerWs.player, receiverPlayerWs.player)) {
         if(bcPosition) {
           receiverPlayerWs.send(JSON.stringify({
             type: 'enemy-position',
@@ -227,6 +228,10 @@ function updateClients() {
   })
 }
  
+function playerInSight(p1, p2) {
+  return Math.sqrt(squareDistance(p1.position, p2.position)) < params.maxParticleDistance // buggy: when player doesn't move, an approaching player doesn't get an update
+}
+
 function respawnPlayer(ws, payload) { 
   var i = Math.floor((Math.random() * playerSpawnPoints.length))
   ws.player.position = playerSpawnPoints[i].splice()

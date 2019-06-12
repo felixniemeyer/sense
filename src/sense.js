@@ -29,6 +29,7 @@ function main() {
     rayDecayCircleFactor: 0.1,
     rayAlpha: 0.5,
     renderMode: 0,
+    maxParticleDistance: 1.1,
 
     //map related config
     tileSize: 0.1 // update maxIntersectionChecks in ./shaders/particle-physics.frag accordingly
@@ -61,7 +62,8 @@ function main() {
     'mapSize',
     'activeParticlesCountNormed', 
     'particleCountSqrt',
-    'preventRespawn'
+    'preventRespawn', 
+    'maxParticleDistance'
   ])
   var updateParticlePhysicsUniforms = () => {
     gl.useProgram(particlePhysicsProgram)
@@ -79,6 +81,7 @@ function main() {
     gl.uniform1i(particlePhysicsUniformLocations.mapSize, mapSize) 
     gl.uniform1f(particlePhysicsUniformLocations.particleCountSqrt, params.particleCountSqrt) 
     gl.uniform1i(particlePhysicsUniformLocations.preventRespawn, 0) 
+    gl.uniform1f(particlePhysicsUniformLocations.maxParticleDistance, params.maxParticleDistance) 
   }
   updateParticlePhysicsUniforms()
 
@@ -372,6 +375,8 @@ function main() {
     gl.drawArrays(gl.TRIANGLE_FAN, 0, circleVertexCount) 
   }
 
+  var drawObjectProgram
+
   //init stuff
   gl.bindFramebuffer(gl.FRAMEBUFFER, null) 
   gl.cullFace(gl.FRONT_AND_BACK)
@@ -605,6 +610,7 @@ function joinGame() {
   loop.updateParams({ // some day: use params from server. Make mapData also a "param"
     rayAlpha: 0.3,
     renderMode: 1,
+    maxParticleDistance: 1.5,
   })
 
   var params = loop.getParams()
